@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v77 · Ingreso unificado</title>
+  <title>Labeling Operations v78 · Armados editor</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -481,6 +481,36 @@
     .manual-nso-extra .field{padding-right:38px}
     .manual-add-nso-row{margin-top:10px}
     @media(max-width:900px){.manual-nso-extra-grid{grid-template-columns:1fr}}
+
+    /* v78 · Armados con editor tipo etiquetas */
+    .vial-preview-actions{
+      display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap
+    }
+    .vial-editor-hidden{display:none!important}
+    .vial-editor-panel{margin-top:12px}
+    .vial-static-preview{
+      min-height:310px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:auto;
+      padding:18px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:
+        linear-gradient(#edf2f8 1px,transparent 1px),
+        linear-gradient(90deg,#edf2f8 1px,transparent 1px),#fafcff;
+      background-size:16px 16px;
+    }
+    .vial-static-preview .layout-label{
+      transform:scale(2.4);
+      transform-origin:center center;
+      margin:120px 70px;
+    }
+    .vial-editor-note{
+      font-size:11px;color:var(--muted);font-weight:700;margin-top:6px
+    }
+
     .section-divider{height:1px;background:var(--line);margin:18px 0}
     .count-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
     .count-box{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
@@ -1089,9 +1119,92 @@
 
             <div class="preview-wrap mt16">
               <div class="preview-area">
-                <strong>Vista previa Código / Armado</strong>
-                <div id="vialPreview" class="mt12"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                  <div>
+                    <strong>Vista previa Código / Armado</strong>
+                    <div class="vial-editor-note">Formato físico: NSO Triple / Múltiple · autoajuste activo</div>
+                  </div>
+                  <span class="badge b-purple">NSO Triple</span>
+                </div>
+
+                <div class="vial-preview-actions mt10">
+                  <button class="btn btn-outline btn-sm" id="vialAutoFit" disabled>✨ Autoajustar</button>
+                  <button class="btn btn-outline btn-sm" id="toggleVialEditor" disabled>✎ Editar</button>
+                  <button class="btn btn-light btn-sm" id="vialResetTemplate" disabled>Restaurar</button>
+                </div>
+
+                <div id="vialPreviewStatic" class="vial-static-preview mt10">
+                  <div style="color:#7a8495">Busca un código / armado para comenzar.</div>
+                </div>
+
+                <div id="vialEditorPanel" class="vial-editor-panel vial-editor-hidden">
+                  <div class="group-live-editor">
+                    <div class="group-editor-tools">
+                      <div class="group-editor-title">Editor · Armados</div>
+                      <div class="vial-editor-note">Selecciona, arrastra o redimensiona un elemento.</div>
+
+                      <div id="vialEditorElements" class="mt8"></div>
+
+                      <div class="group-editor-props mt12">
+                        <div>
+                          <label>Tamaño letra (dots)</label>
+                          <input class="field" type="number" id="vialPropFontSize" min="4" max="60" value="14">
+                        </div>
+                        <div>
+                          <label>Ancho texto (%)</label>
+                          <input class="field" type="number" id="vialPropStretchX" min="50" max="250" value="100">
+                        </div>
+                        <div>
+                          <label>Peso</label>
+                          <select class="field" id="vialPropWeight">
+                            <option value="400">Normal</option>
+                            <option value="600">Semi</option>
+                            <option value="700">Negrita</option>
+                            <option value="900">Extra</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label>Alineación</label>
+                          <select class="field" id="vialPropAlign">
+                            <option value="left">Izquierda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Derecha</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label>Líneas</label>
+                          <input class="field" type="number" id="vialPropLines" min="1" max="8" value="1">
+                        </div>
+                        <div>
+                          <label>Rotación</label>
+                          <select class="field" id="vialPropRotation">
+                            <option value="0">0°</option>
+                            <option value="90">90°</option>
+                            <option value="180">180°</option>
+                            <option value="270">270°</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label>Zoom editor</label>
+                          <select class="field" id="vialEditorZoom">
+                            <option value="2">200%</option>
+                            <option value="3">300%</option>
+                            <option value="4" selected>400%</option>
+                            <option value="5">500%</option>
+                            <option value="6">600%</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="group-editor-stage">
+                      <div class="group-editor-scale" id="vialEditorScaleInfo"></div>
+                      <div id="vialEditorHost" class="group-editor-canvas-host"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
+
               <div class="printer-box">
                 <strong>Datos del código / armado</strong>
                 <div class="mt12" id="vialInfo" style="font-size:13px;color:var(--muted)">Busca un código / armado para comenzar.</div>
@@ -2519,7 +2632,7 @@ function bulkDisplayModel(p,type){
 
   return {
     code:p?.code||"",
-    desc:type==="triple" ? "" : effectiveCategory(p),
+    desc:(type==="triple"||type==="armados") ? "" : effectiveCategory(p),
     content:(type==="ancha" || type==="larga") ? cleanContainsText(p?.longText||"") : "",
     nsos,
     nso:nsos.join("  "),
@@ -2564,7 +2677,10 @@ function classifyProduct(p){
   if(manualType) return {type:manualType,reason:"Clasificación manual guardada"};
 
   if(!effectiveText && !hasExtended && nsoCount===1) return {type:"normal",reason:"Solo 1 NSO · Etiqueta Normal"};
-  if(!effectiveText && !hasExtended) return {type:"review",reason:"Sin descripción regulatoria ni NSO"};
+  if(!effectiveText && !hasExtended) return {
+    type:"normal",
+    reason:"Código existente sin datos regulatorios · no caduca · Etiqueta Normal"
+  };
 
   // El PRN Ancha es el formato diseñado para CONT / ingredientes.
   if(hasExtended){
@@ -2618,11 +2734,35 @@ function renderBatchInput(items){
 }
 document.getElementById("batchText").addEventListener("input",()=>renderBatchInput(parseBatchText()));
 
+function resolveBatchProduct(code){
+  const key=normalizeCode(code);
+  if(db.products?.[key])return db.products[key];
+
+  // Un código existente únicamente en "Descripción productos" también es un
+  // código conocido. Como no tiene datos regulatorios, se imprime Normal.
+  const gp=generalProductRecord(key);
+  if(gp){
+    return {
+      code:key,
+      description:gp.description||"",
+      category:"",
+      nrCategory:"",
+      nsoCategory:"",
+      nsos:[],
+      longText:"",
+      sourceType:"",
+      sourcePresence:"generalProducts"
+    };
+  }
+
+  return null;
+}
+
 function processBatch(){
   const items = parseBatchText();
   renderBatchInput(items);
   currentResults = items.map(x=>{
-    const p = db.products[x.code];
+    const p = resolveBatchProduct(x.code);
     const c = classifyProduct(p);
     return {code:x.code,qty:x.qty,product:p||null,type:c.type,reason:c.reason};
   });
@@ -4247,7 +4387,7 @@ function renderBulkLogicalCanvas(product,type,opts={}){
   if(layout.items.desc && text.desc) drawCanvasTextBlock(ctx,layout.items.desc,tpl.desc||{},text.desc,{key:'desc'});
   if(layout.items.content && text.content) drawCanvasTextBlock(ctx,layout.items.content,tpl.content||{},`CONTIENE: ${text.content}`,{key:'content'});
 
-  if(type==='triple' && layout.items.nso){
+  if((type==='triple'||type==='armados') && layout.items.nso){
     drawTripleNsoCanvas(ctx,layout.items.nso,tpl.nso||{},text.nsos);
   }else if(layout.items.nso && text.nso){
     drawCanvasTextBlock(ctx,layout.items.nso,tpl.nso||{},text.nso,{key:'nso'});
@@ -5190,28 +5330,438 @@ function findArmadoFlexible(raw){
   return null;
 }
 let currentArmado=null;
+let vialEditorOpen=false;
+let vialEditorSelected="code";
+let vialEditorSaveTimer=0;
+
+function currentArmadoProduct(){
+  return currentArmado ? buildArmadoProduct(currentArmado) : null;
+}
+
+function vialEditorZoomValue(){
+  return Math.max(1,Number(document.getElementById("vialEditorZoom")?.value||4));
+}
+
+function vialEditorKeys(){
+  const layout=db.templates.armados?._layout;
+  if(!layout)return [];
+  return ["code","nso","import","barcode"].filter(k=>layout.items?.[k]);
+}
+
+function vialEditorLabel(k){
+  return ({
+    code:"Código",
+    nso:"Descripción / NSO",
+    import:"Importador",
+    barcode:"Código de barras"
+  })[k]||k;
+}
+
+function armadoAutoFitSize(product){
+  const tpl=db.templates.armados||{};
+  const L=tpl._layout?.items?.nso;
+  const vals=(product?.nsos||[]).filter(Boolean).slice(0,4);
+  if(!L || !vals.length)return Number(tpl.nso?.size||13);
+
+  const gap=2;
+  const segW=Math.max(14,(L.w-gap*Math.max(0,vals.length-1))/vals.length);
+  const stretch=Math.max(.5,Math.min(2.5,Number(tpl.nso?.stretchX||1)));
+  let size=Math.min(
+    Number(tpl.nso?.size||15),
+    vals.length>=4?11:vals.length===3?13:15
+  );
+
+  for(const value of vals){
+    let local=size;
+    while(local>5 && (
+      estimateZebraLineWidth(value,local,stretch) > Math.max(20,L.h-4) ||
+      local*1.08 > Math.max(6,segW-2)
+    )){
+      local--;
+    }
+    size=Math.min(size,local);
+  }
+  return Math.max(5,size);
+}
+
+function vialEditorPersist(){
+  clearTimeout(vialEditorSaveTimer);
+  vialEditorSaveTimer=setTimeout(()=>{
+    saveDB();
+    try{bulkRasterCache.clear()}catch(_){}
+    scheduleFirebaseAutoSync?.();
+  },120);
+}
+
+function vialEditorLoadProps(){
+  const tpl=db.templates.armados;
+  const key=vialEditorSelected;
+  const L=tpl?._layout?.items?.[key];
+  if(!L)return;
+  const isBarcode=key==="barcode";
+
+  const font=document.getElementById("vialPropFontSize");
+  const stretch=document.getElementById("vialPropStretchX");
+  const weight=document.getElementById("vialPropWeight");
+  const align=document.getElementById("vialPropAlign");
+  const lines=document.getElementById("vialPropLines");
+  const rot=document.getElementById("vialPropRotation");
+
+  [font,stretch,weight,align,lines].forEach(el=>{if(el)el.disabled=isBarcode});
+  if(rot){rot.disabled=false;rot.value=String(L.rotation||0)}
+
+  if(!isBarcode && tpl[key]){
+    if(font)font.value=tpl[key].size;
+    if(stretch)stretch.value=Math.round((tpl[key].stretchX||1)*100);
+    if(weight)weight.value=tpl[key].weight;
+    if(align)align.value=tpl[key].align;
+    if(lines)lines.value=tpl[key].lines||1;
+  }
+}
+
+function vialEditorItemHTML(product,k,L,idx){
+  const tpl=db.templates.armados;
+  const selected=k===vialEditorSelected?" selected":"";
+  const inner=groupEditInnerGeom(L);
+
+  if(k==="barcode"){
+    const rr=((Number(L.rotation)||0)%360+360)%360;
+    const sw=rr===90||rr===270;
+    const bw=Math.max(1,Math.round(sw?L.h:L.w));
+    const bh=Math.max(1,Math.round(sw?L.w:L.h));
+    const bc=makeBarcodeCanvas(product.code||"0",bw,bh);
+    const src=bc.toDataURL("image/png");
+    return `<div class="group-edit-item${selected}" data-k="${k}" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">
+      <div class="group-edit-inner barcode-inner" style="${inner}">
+        <img src="${src}" alt="Barcode" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">
+      </div>
+      ${groupEditorResizeHandles()}
+    </div>`;
+  }
+
+  if(k==="nso"){
+    const p={...(tpl.nso||{}),size:armadoAutoFitSize(product)};
+    return `<div class="group-edit-item${selected}" data-k="${k}" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">
+      ${tripleNsoSegmentsHTML(product.nsos||[],L,p,"label")}
+      ${groupEditorResizeHandles()}
+    </div>`;
+  }
+
+  const text=bulkDisplayModel(product,"armados");
+  const p=tpl[k]||{size:10,weight:400,align:"left",lines:1,stretchX:1};
+  const value=text[k]||"";
+  let displaySize=p.size||10;
+  if(value){
+    const fit=fitField(value,k,"armados");
+    if(Number.isFinite(fit.size))displaySize=fit.size;
+  }
+  const justify=p.align==="center"?"center":p.align==="right"?"flex-end":"flex-start";
+
+  return `<div class="group-edit-item${selected}" data-k="${k}" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">
+    <div class="group-edit-inner" style="${inner};font-size:${displaySize}px;font-weight:${p.weight};text-align:${p.align};justify-content:${justify};align-items:flex-start;padding-top:0">
+      <span class="group-edit-text" style="transform:scaleX(${p.stretchX||1});white-space:pre-line;line-height:1.05em;overflow:hidden">${escapeHTML(value)}</span>
+    </div>
+    ${groupEditorResizeHandles()}
+  </div>`;
+}
+
+function renderVialEditor(){
+  const product=currentArmadoProduct();
+  const host=document.getElementById("vialEditorHost");
+  const elements=document.getElementById("vialEditorElements");
+  if(!host)return;
+
+  if(!product){
+    host.innerHTML=`<div style="color:#7a8495">Sin vista previa</div>`;
+    if(elements)elements.innerHTML="";
+    return;
+  }
+
+  const tpl=db.templates.armados;
+  const layout=tpl?._layout;
+  if(!layout)return;
+
+  const keys=vialEditorKeys();
+  if(!keys.includes(vialEditorSelected))vialEditorSelected=keys[0]||"code";
+
+  if(elements){
+    elements.innerHTML=keys.map(k=>`<button class="btn btn-light w100 mt6${k===vialEditorSelected?" active":""}" data-vial-key="${k}">${vialEditorLabel(k)}</button>`).join("");
+    elements.querySelectorAll("[data-vial-key]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        vialEditorSelected=btn.dataset.vialKey;
+        renderVialEditor();
+      });
+    });
+  }
+
+  const zoom=vialEditorZoomValue();
+  const scale=document.getElementById("vialEditorScaleInfo");
+  if(scale)scale.textContent=`13×25 mm · 104×200 dots · Zoom ${zoom*100}% · autoajuste activo`;
+
+  const label=document.createElement("div");
+  label.className="group-edit-label";
+  label.id="vialLiveLabel";
+  label.style.width=layout.w+"px";
+  label.style.height=layout.h+"px";
+  label.style.transform=`scale(${zoom})`;
+  label.style.margin=`${Math.round(layout.h*(zoom-1)/2)}px ${Math.round(layout.w*(zoom-1)/2)}px`;
+  label.innerHTML=keys.map((k,i)=>vialEditorItemHTML(product,k,layout.items[k],i)).join("");
+
+  host.innerHTML="";
+  host.appendChild(label);
+  label.querySelectorAll(".group-edit-item").forEach(el=>bindVialEditItem(el,product,el.dataset.k));
+  vialEditorLoadProps();
+}
+
+function bindVialEditItem(el,product,key){
+  el.addEventListener("pointerdown",e=>{
+    if(e.target.classList.contains("resize-handle"))return;
+    e.preventDefault();
+    vialEditorSelected=key;
+    document.querySelectorAll("#vialLiveLabel .group-edit-item").forEach(x=>x.classList.toggle("selected",x===el));
+    vialEditorLoadProps();
+
+    const layout=db.templates.armados._layout;
+    const L=layout.items[key];
+    const zoom=vialEditorZoomValue();
+    const sx=e.clientX,sy=e.clientY,ox=L.x,oy=L.y;
+
+    const move=ev=>{
+      L.x=Math.max(0,Math.min(layout.w-L.w,ox+(ev.clientX-sx)/zoom));
+      L.y=Math.max(0,Math.min(layout.h-L.h,oy+(ev.clientY-sy)/zoom));
+      el.style.left=L.x+"px";
+      el.style.top=L.y+"px";
+    };
+    const up=()=>{
+      document.removeEventListener("pointermove",move);
+      vialEditorPersist();
+      renderVialStaticPreview();
+    };
+    document.addEventListener("pointermove",move,{passive:true});
+    document.addEventListener("pointerup",up,{once:true});
+  });
+
+  el.querySelectorAll(".resize-handle").forEach(h=>{
+    h.addEventListener("pointerdown",e=>startVialResize(e,el,product,key,h.dataset.dir));
+  });
+}
+
+function startVialResize(e,el,product,key,dir){
+  e.preventDefault();e.stopPropagation();
+  vialEditorSelected=key;
+  document.querySelectorAll("#vialLiveLabel .group-edit-item").forEach(x=>x.classList.toggle("selected",x===el));
+  vialEditorLoadProps();
+
+  const tpl=db.templates.armados;
+  const layout=tpl._layout;
+  const L=layout.items[key];
+  const zoom=vialEditorZoomValue();
+  const sx=e.clientX,sy=e.clientY;
+  const orig={
+    x:L.x,y:L.y,w:L.w,h:L.h,
+    size:tpl[key]?.size||10,
+    stretchX:tpl[key]?.stretchX||1
+  };
+
+  const move=ev=>{
+    const dx=(ev.clientX-sx)/zoom,dy=(ev.clientY-sy)/zoom;
+    let x=orig.x,y=orig.y,w=orig.w,h=orig.h;
+
+    if(dir.includes("e"))w=orig.w+dx;
+    if(dir.includes("s"))h=orig.h+dy;
+    if(dir.includes("w")){w=orig.w-dx;x=orig.x+dx}
+    if(dir.includes("n")){h=orig.h-dy;y=orig.y+dy}
+
+    w=Math.max(6,w);h=Math.max(5,h);
+    x=Math.max(0,Math.min(x,layout.w-w));
+    y=Math.max(0,Math.min(y,layout.h-h));
+    if(x+w>layout.w)w=layout.w-x;
+    if(y+h>layout.h)h=layout.h-y;
+
+    L.x=x;L.y=y;L.w=w;L.h=h;
+    el.style.left=x+"px";
+    el.style.top=y+"px";
+    el.style.width=w+"px";
+    el.style.height=h+"px";
+
+    if(key!=="barcode" && tpl[key]){
+      const r=((L.rotation||0)%360+360)%360;
+      const rotated=r===90||r===270;
+      const fontScale=rotated?w/orig.w:h/orig.h;
+      const lengthScale=rotated?h/orig.h:w/orig.w;
+      tpl[key].size=Math.max(4,Math.min(60,Math.round(orig.size*Math.max(.45,Math.min(2.5,fontScale)))));
+      tpl[key].stretchX=Math.max(.5,Math.min(2.5,orig.stretchX*lengthScale));
+    }
+  };
+
+  const up=()=>{
+    document.removeEventListener("pointermove",move);
+    vialEditorPersist();
+    renderVialPreview();
+  };
+  document.addEventListener("pointermove",move,{passive:true});
+  document.addEventListener("pointerup",up,{once:true});
+}
+
+function applyVialEditorProps(){
+  const product=currentArmadoProduct();
+  if(!product)return;
+
+  const tpl=db.templates.armados;
+  const key=vialEditorSelected;
+  const L=tpl?._layout?.items?.[key];
+  if(!L)return;
+
+  L.rotation=Number(document.getElementById("vialPropRotation")?.value||0);
+
+  if(key!=="barcode" && tpl[key]){
+    tpl[key].size=Math.max(4,Number(document.getElementById("vialPropFontSize")?.value||tpl[key].size));
+    tpl[key].stretchX=Math.max(.5,Math.min(2.5,Number(document.getElementById("vialPropStretchX")?.value||100)/100));
+    tpl[key].weight=Number(document.getElementById("vialPropWeight")?.value||tpl[key].weight);
+    tpl[key].align=document.getElementById("vialPropAlign")?.value||tpl[key].align;
+    tpl[key].lines=Math.max(1,Number(document.getElementById("vialPropLines")?.value||tpl[key].lines));
+  }
+
+  vialEditorPersist();
+  renderVialPreview();
+}
+
+["vialPropFontSize","vialPropStretchX","vialPropWeight","vialPropAlign","vialPropLines","vialPropRotation"].forEach(id=>{
+  document.getElementById(id)?.addEventListener("input",applyVialEditorProps);
+  document.getElementById(id)?.addEventListener("change",applyVialEditorProps);
+});
+document.getElementById("vialEditorZoom")?.addEventListener("change",renderVialEditor);
+
+function renderVialStaticPreview(){
+  const host=document.getElementById("vialPreviewStatic");
+  const product=currentArmadoProduct();
+  if(!host)return;
+
+  if(!product){
+    host.innerHTML=`<div style="color:#7a8495">Busca un código / armado para comenzar.</div>`;
+    return;
+  }
+
+  host.innerHTML=renderLayoutLabel(product,"armados");
+}
+
+function renderVialPreview(){
+  const product=currentArmadoProduct();
+  renderVialStaticPreview();
+  if(vialEditorOpen)renderVialEditor();
+
+  const editBtn=document.getElementById("toggleVialEditor");
+  const autoBtn=document.getElementById("vialAutoFit");
+  const resetBtn=document.getElementById("vialResetTemplate");
+  [editBtn,autoBtn,resetBtn].forEach(b=>{if(b)b.disabled=!product});
+
+  if(editBtn)editBtn.textContent=vialEditorOpen?"✕ Cerrar editor":"✎ Editar";
+}
+
+document.getElementById("toggleVialEditor")?.addEventListener("click",()=>{
+  if(!currentArmado)return;
+  vialEditorOpen=!vialEditorOpen;
+  document.getElementById("vialEditorPanel")?.classList.toggle("vial-editor-hidden",!vialEditorOpen);
+  renderVialPreview();
+});
+
+document.getElementById("vialAutoFit")?.addEventListener("click",()=>{
+  const product=currentArmadoProduct();
+  if(!product)return;
+
+  // Volvemos a la geometría segura de Triple y dejamos un tamaño máximo.
+  // Luego cada armado reduce automáticamente el texto si lo necesita.
+  db.templates.armados._layout=structuredClone(referenceLayouts().armados);
+  const base=DEFAULT_DB.templates.armados;
+  for(const key of ["code","nso","import","barcode"]){
+    if(base?.[key])db.templates.armados[key]=structuredClone(base[key]);
+  }
+  db.templates.armados.nso.size=Math.max(5,armadoAutoFitSize(product));
+  vialEditorSelected="nso";
+  saveDB();
+  try{bulkRasterCache.clear()}catch(_){}
+  renderVialPreview();
+  toast(`Armado autoajustado · texto ${db.templates.armados.nso.size} dots`);
+});
+
+document.getElementById("vialResetTemplate")?.addEventListener("click",()=>{
+  if(!currentArmado)return;
+  if(!confirm("¿Restaurar Armados al formato NSO Triple?"))return;
+
+  db.templates.armados=structuredClone(DEFAULT_DB.templates.armados);
+  db.templates.armados._layout=structuredClone(referenceLayouts().armados);
+  saveDB();
+  try{bulkRasterCache.clear()}catch(_){}
+  vialEditorSelected="code";
+  renderVialPreview();
+  toast("Formato Armados restaurado");
+});
+
 function searchArmado(){
   const key=document.getElementById("vialSearch").value;
   const v=findArmadoFlexible(key);
   currentArmado=v||null;
+  vialEditorOpen=false;
+  document.getElementById("vialEditorPanel")?.classList.add("vial-editor-hidden");
+
   if(!v){
     document.getElementById("vialInfo").innerHTML=`<strong>No encontrado</strong><br><span>Prueba con el código del armado. Si acabas de actualizar la base, vuelve a subir Armados una vez en Configuración.</span>`;
-    document.getElementById("vialPreview").innerHTML="";return;
+    renderVialPreview();
+    return;
   }
+
   document.getElementById("vialInfo").innerHTML=`<strong>Código: ${escapeHTML(v.code||"")}</strong><br>${escapeHTML(v.description||"")}${v.nso?`<br>${escapeHTML(v.nso)}`:""}`;
-  const p=buildArmadoProduct(v);
-  document.getElementById("vialPreview").innerHTML=renderLayoutLabel(p,"armados");
+  renderVialPreview();
 }
+
 document.getElementById("vialFind").addEventListener("click",searchArmado);
 document.getElementById("vialSearch")?.addEventListener("keydown",e=>{if(e.key==="Enter")searchArmado()});
+
+async function buildArmadoEditorPage(products){
+  let z="^XA^CI28^PW470^LL208^LH0,0^LS0";
+  const pitch=120;
+
+  for(let col=0;col<Math.min(4,products.length);col++){
+    const product=products[col];
+    if(product?.__separatorBlank)continue;
+    const x=col*pitch;
+    const graphic=await rasterizePreviewToGraphic(product,"armados");
+    z+=graphicZPL(graphic,x,0);
+    z+=nativeBarcodeZPL(product,"armados",x,0);
+  }
+
+  return z+"^PQ1^XZ";
+}
+
+async function buildArmadoEditorZPL(product,qty){
+  const n=Math.max(1,parseInt(qty||1,10)||1);
+  let z="",row=[];
+
+  const flush=async()=>{
+    if(!row.length)return;
+    z+=await buildArmadoEditorPage(row);
+    row=[];
+  };
+
+  for(let i=0;i<n;i++){
+    row.push(product);
+    if(row.length===4)await flush();
+  }
+  await flush();
+  return z;
+}
+
 document.getElementById("printVialBtn")?.addEventListener("click",async()=>{
   if(!currentArmado)return toast("Primero busca un Código / Armado");
   try{
     const qty=Math.max(1,parseInt(document.getElementById("vialQty")?.value||"1",10)||1);
     const p=buildArmadoProduct(currentArmado);
-    const packed=await buildFourUpGroupZPL([{product:p,qty}],"armados");
-    await sendZplWithCheck("bulk",packed.zpl,qty,`IMPRIMIR CÓDIGO / ARMADO ${currentArmado.code||""}`);
-  }catch(e){console.error(e);toast(e.message);}
+    const zpl=await buildArmadoEditorZPL(p,qty);
+    await sendZplWithCheck("bulk",zpl,qty,`IMPRIMIR CÓDIGO / ARMADO ${currentArmado.code||""}`);
+  }catch(e){
+    console.error(e);
+    toast(e.message);
+  }
 });
 
 /* ---------- General: normalización fija 6 + 4 + 4 ---------- */
