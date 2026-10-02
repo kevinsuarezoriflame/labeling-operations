@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v74 · Firebase</title>
+  <title>Labeling Operations v76 · Separadores</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -712,6 +712,26 @@
 
     .manual-section-title{font-size:15px;font-weight:900;margin-bottom:10px}
 
+    /* v75 · Tabla filtrada por grupo */
+    .group-result-toolbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:9px 10px;
+      border:1px solid var(--line);
+      border-bottom:0;
+      border-radius:12px 12px 0 0;
+      background:#f8fafc;
+    }
+    .group-result-actions{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+
     /* v73 · Separación visual de Documentos */
     .config-zone{
       border:1.5px solid var(--line);
@@ -893,13 +913,25 @@
             </div>
             <div class="panel-body">
               <div class="groups" id="groupList"></div>
-              <div class="mt16 table-wrap" style="max-height:265px">
+
+              <div class="group-result-toolbar mt16">
+                <div>
+                  <strong id="selectedGroupTableTitle">Códigos del grupo</strong>
+                  <div class="panel-sub" id="selectedGroupTableMeta">Selecciona una sección</div>
+                </div>
+                <div class="group-result-actions">
+                  <button class="btn btn-light btn-sm" id="copySelectedGroup" title="Copiar códigos del grupo">📋 Copiar</button>
+                  <button class="btn btn-light btn-sm" id="downloadSelectedGroup" title="Descargar grupo en CSV">⬇️ Descargar</button>
+                </div>
+              </div>
+
+              <div class="table-wrap" style="max-height:265px">
                 <table>
                   <thead>
                     <tr><th>Código</th><th>Producto</th><th>NSO</th><th>Tipo</th><th>Cant.</th><th></th></tr>
                   </thead>
                   <tbody id="resultTable">
-                    <tr><td colspan="6" style="color:#7a8495">Procesa un lote para ver resultados</td></tr>
+                    <tr><td colspan="6" style="color:#7a8495">Procesa un lote y selecciona un grupo</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2549,7 +2581,11 @@ document.getElementById("clearBatch").addEventListener("click",()=>{
   document.getElementById("batchText").value="";
   renderBatchInput([]);
   currentResults=[];
+  currentType=null;
+  currentTypeItems=[];
+  currentIndex=0;
   renderResults();
+  renderCurrent();
 });
 
 function grouped(){
@@ -2557,6 +2593,10 @@ function grouped(){
     const items=currentResults.filter(x=>x.type===type);
     return {type,items,total:items.reduce((a,b)=>a+b.qty,0)};
   });
+}
+function selectedGroupRows(){
+  if(!currentType)return [];
+  return currentResults.filter(x=>x.type===currentType);
 }
 function renderResults(){
   const groups = grouped();
@@ -2577,11 +2617,44 @@ function renderResults(){
   });
 
   const tbody=document.getElementById("resultTable");
+  const title=document.getElementById("selectedGroupTableTitle");
+  const meta=document.getElementById("selectedGroupTableMeta");
+  const copyBtn=document.getElementById("copySelectedGroup");
+  const downloadBtn=document.getElementById("downloadSelectedGroup");
+
   if(!currentResults.length){
-    tbody.innerHTML=`<tr><td colspan="6" style="color:#7a8495">Procesa un lote para ver resultados</td></tr>`;
+    if(title)title.textContent="Códigos del grupo";
+    if(meta)meta.textContent="Procesa un lote para ver resultados";
+    if(copyBtn)copyBtn.disabled=true;
+    if(downloadBtn)downloadBtn.disabled=true;
+    tbody.innerHTML=`<tr><td colspan="6" style="color:#7a8495">Procesa un lote y selecciona un grupo</td></tr>`;
     return;
   }
-  tbody.innerHTML=currentResults.map(x=>{
+
+  if(!currentType){
+    if(title)title.textContent="Códigos del grupo";
+    if(meta)meta.textContent="Selecciona una sección";
+    if(copyBtn)copyBtn.disabled=true;
+    if(downloadBtn)downloadBtn.disabled=true;
+    tbody.innerHTML=`<tr><td colspan="6" style="color:#7a8495">Selecciona un grupo de impresión</td></tr>`;
+    return;
+  }
+
+  const rows=selectedGroupRows();
+  const groupInfo=typeInfo[currentType]||{label:currentType};
+  const total=rows.reduce((a,b)=>a+b.qty,0);
+
+  if(title)title.textContent=`${groupInfo.label}`;
+  if(meta)meta.textContent=`${rows.length} código(s) · ${total} etiqueta(s)`;
+  if(copyBtn)copyBtn.disabled=!rows.length;
+  if(downloadBtn)downloadBtn.disabled=!rows.length;
+
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="6" style="color:#7a8495">Este grupo no tiene códigos</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML=rows.map(x=>{
     const p=x.product;
     const info=typeInfo[x.type];
     const nsos=(p?.nsos||[]).filter(Boolean).join(" / ") || "—";
@@ -2606,6 +2679,57 @@ window.selectGroup=function(type){
   renderResults();
   renderCurrent();
 }
+
+function selectedGroupExportRows(){
+  return selectedGroupRows().map(x=>{
+    const p=x.product;
+    const nsos=(p?.nsos||[]).filter(Boolean).join(" / ") || "";
+    return {
+      codigo:x.code,
+      producto:p?.description||"No encontrado",
+      nso:nsos,
+      tipo:typeInfo[x.type]?.label||x.type,
+      cantidad:x.qty
+    };
+  });
+}
+document.getElementById("copySelectedGroup")?.addEventListener("click",async()=>{
+  const rows=selectedGroupExportRows();
+  if(!rows.length){toast("Este grupo no tiene códigos");return;}
+  const text=[
+    ["Código","Producto","NSO","Tipo","Cantidad"].join("\t"),
+    ...rows.map(r=>[r.codigo,r.producto,r.nso,r.tipo,r.cantidad].join("\t"))
+  ].join("\n");
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(`${rows.length} código(s) copiados`);
+  }catch(_){
+    const ta=document.createElement("textarea");
+    ta.value=text;ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
+    toast(`${rows.length} código(s) copiados`);
+  }
+});
+document.getElementById("downloadSelectedGroup")?.addEventListener("click",()=>{
+  const rows=selectedGroupExportRows();
+  if(!rows.length){toast("Este grupo no tiene códigos");return;}
+  const esc=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const csv=[
+    ["Código","Producto","NSO","Tipo","Cantidad"].map(esc).join(","),
+    ...rows.map(r=>[r.codigo,r.producto,r.nso,r.tipo,r.cantidad].map(esc).join(","))
+  ].join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const clean=(typeInfo[currentType]?.label||currentType||"grupo").replace(/[^a-z0-9áéíóúñ_-]+/gi,"_");
+  a.href=url;
+  a.download=`Labeling_Operations_${clean}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`Grupo descargado · ${rows.length} código(s)`);
+});
 
 let groupEditorOpen=false;
 function syncGroupEditorVisibility(){
@@ -4389,6 +4513,7 @@ function buildNormalExactZDesignerPage(products){
   let z="^XA^MMT^PW470^LL208^LS0";
   const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   products.slice(0,4).forEach((p,col)=>{
+    if(p?.__separatorBlank)return;
     const b=col*120, code=String(p?.code||"").trim();
     const desc=effectiveCategory(p), nso=(p?.nsos||[]).filter(Boolean)[0]||"";
     z+=zplFieldTextFT(b+96,193,importer,"B",8,8);
@@ -4405,6 +4530,7 @@ function buildTripleExactZDesignerPage(products){
   const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   const nsoX=[58,71,82];
   products.slice(0,4).forEach((p,col)=>{
+    if(p?.__separatorBlank)return;
     const b=col*120,code=String(p?.code||"").trim();
     const nsos=(p?.nsos||[]).filter(Boolean).slice(0,3);
     z+=zplFieldTextFT(b+96,188,importer,"B",12,8);
@@ -4456,6 +4582,7 @@ function buildLongEditorNativePage(products){
   const importer="IMP.ORIFLAME DEL ECUADOR S.A.";
 
   products.slice(0,3).forEach((p,col)=>{
+    if(p?.__separatorBlank)return;
     const b=bases[col];
     const code=String(p?.code||"").trim();
     const nso=(p?.nsos||[]).filter(Boolean)[0]||"";
@@ -4495,6 +4622,7 @@ function buildWideEditorNativePage(products){
   const importer="IMP.ORIFLAME DEL ECUADOR S.A.";
 
   products.slice(0,3).forEach((p,col)=>{
+    if(p?.__separatorBlank)return;
     const b=bases[col];
     const code=String(p?.code||"").trim();
     const nso=(p?.nsos||[]).filter(Boolean)[0]||"";
@@ -4581,6 +4709,7 @@ function buildArmadoExactNormalPage(products){
   let z="^XA^MMT^PW470^LL208^LS0";
   const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   products.slice(0,4).forEach((p,col)=>{
+    if(p?.__separatorBlank)return;
     const b=col*120,code=String(p?.code||"").trim();
     const desc=effectiveCategory(p),nso=(p?.nsos||[]).filter(Boolean)[0]||"";
     z+=zplFieldTextFT(b+96,193,importer,"B",8,8);
@@ -4677,22 +4806,40 @@ async function buildWysiwygSingleZPL(product,type,qty=1){
   return `^XA^CI28^FWN^PW${g.width}^LL${g.height}^LH0,0^LS0${graphicZPL(g,0,0)}${nativeBarcodeZPL(product,type,0,0)}^PQ${n}^XZ`;
 }
 async function buildFourUpGroupZPL(items,type){
+  const separatorBlank={__separatorBlank:true};
+  const separatorQty=2;
+
   if(type==="larga"||type==="ancha"){
     const cfg=type==="larga"
       ?{cols:3,pw:825,ll:104,builder:buildLongEditorNativePage}
       :{cols:3,pw:811,ll:160,builder:buildWideEditorNativePage};
-    let z="",row=[],total=0;
+
+    let z="",row=[],total=0,blankCount=0;
     const flush=()=>{if(!row.length)return;z+=cfg.builder(row);row=[];};
-    for(const item of items){
+
+    items.forEach((item,itemIndex)=>{
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
       for(let i=0;i<qty;i++){
-        row.push(item.product);total++;
-        if(row.length===3)flush();
+        row.push(item.product);
+        total++;
+        if(row.length===cfg.cols)flush();
       }
-    }
+
+      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
+      if(itemIndex<items.length-1){
+        for(let s=0;s<separatorQty;s++){
+          row.push(separatorBlank);
+          blankCount++;
+          if(row.length===cfg.cols)flush();
+        }
+      }
+    });
+
     flush();
-    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:3};
+    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:3};
   }
+
   const cfg={
     normal:{cols:4,pw:470,ll:208,builder:buildNormalExactZDesignerPage},
     triple:{cols:4,pw:470,ll:208,builder:buildTripleExactZDesignerPage},
@@ -4700,26 +4847,72 @@ async function buildFourUpGroupZPL(items,type){
   }[type];
 
   if(cfg){
-    let z="",row=[],total=0;
+    let z="",row=[],total=0,blankCount=0;
     const flush=()=>{if(row.length){z+=cfg.builder(row);row=[];}};
-    for(const item of items){
+
+    items.forEach((item,itemIndex)=>{
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
       for(let i=0;i<qty;i++){
-        row.push(item.product);total++;
+        row.push(item.product);
+        total++;
         if(row.length===cfg.cols)flush();
       }
-    }
+
+      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
+      if(itemIndex<items.length-1){
+        for(let s=0;s<separatorQty;s++){
+          row.push(separatorBlank);
+          blankCount++;
+          if(row.length===cfg.cols)flush();
+        }
+      }
+    });
+
     flush();
-    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
+    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
   }
 
   // Fallback heredado para cualquier formato futuro.
   const sheet=bulkSheetConfig(),media=zebraMedia(type),labelW=mmToDots(media.w),labelH=mmToDots(media.h);
   const pageW=sheet.left+sheet.columns*labelW+Math.max(0,sheet.columns-1)*sheet.gapX,pageH=labelH+sheet.gapY;
-  let z="",row=[],total=0;
-  const flushRow=async()=>{if(!row.length)return;z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;for(let col=0;col<row.length;col++){const product=row[col],x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);z+=graphicZPL(graphic,x,0);z+=nativeBarcodeZPL(product,type,x,0);}z+="^PQ1^XZ";row=[];};
-  for(const item of items){const qty=Math.max(1,parseInt(item.qty||1,10)||1);for(let i=0;i<qty;i++){row.push(item.product);total++;if(row.length===sheet.columns)await flushRow();}}
-  await flushRow();return {zpl:z,total,pageW,pageH,columns:sheet.columns};
+  let z="",row=[],total=0,blankCount=0;
+
+  const flushRow=async()=>{
+    if(!row.length)return;
+    z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;
+    for(let col=0;col<row.length;col++){
+      const product=row[col];
+      if(product?.__separatorBlank)continue;
+      const x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);
+      z+=graphicZPL(graphic,x,0);
+      z+=nativeBarcodeZPL(product,type,x,0);
+    }
+    z+="^PQ1^XZ";
+    row=[];
+  };
+
+  for(let itemIndex=0;itemIndex<items.length;itemIndex++){
+    const item=items[itemIndex];
+    const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
+    for(let i=0;i<qty;i++){
+      row.push(item.product);
+      total++;
+      if(row.length===sheet.columns)await flushRow();
+    }
+
+    if(itemIndex<items.length-1){
+      for(let s=0;s<separatorQty;s++){
+        row.push(separatorBlank);
+        blankCount++;
+        if(row.length===sheet.columns)await flushRow();
+      }
+    }
+  }
+
+  await flushRow();
+  return {zpl:z,total,blankCount,pageW,pageH,columns:sheet.columns};
 }
 
 function buildArmadoProduct(v){
@@ -4840,9 +5033,11 @@ document.getElementById("printGroup").addEventListener("click",async()=>{
   try{
     let total=0,zpl="";
     toast("Preparando impresión Zebra nativa...");
+    let separatorBlanks=0;
     if(isFourUpType(currentType)){
       const packed=await buildFourUpGroupZPL(currentTypeItems,currentType);
       total=packed.total;
+      separatorBlanks=packed.blankCount||0;
       zpl=packed.zpl;
     }else{
       total=currentTypeItems.reduce((a,b)=>a+b.qty,0);
@@ -4852,7 +5047,16 @@ document.getElementById("printGroup").addEventListener("click",async()=>{
       }
       zpl=parts.join("");
     }
-    await sendZplWithCheck("bulk",zpl,total,`IMPRIMIR GRUPO ZPL NATIVO: ${typeInfo[currentType]?.label||currentType}`);
+    const physicalTotal=total+separatorBlanks;
+    const separatorNote=separatorBlanks
+      ?`\nEtiquetas de producto: ${total}\nSeparadores vacíos: ${separatorBlanks}`
+      :"";
+    await sendZplWithCheck(
+      "bulk",
+      zpl,
+      physicalTotal,
+      `IMPRIMIR GRUPO ZPL NATIVO: ${typeInfo[currentType]?.label||currentType}${separatorNote}`
+    );
   }catch(e){console.error(e);toast(e.message);}
 });
 
