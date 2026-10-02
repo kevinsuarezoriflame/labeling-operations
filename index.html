@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v76 · Separadores</title>
+  <title>Labeling Operations v77 · Ingreso unificado</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -455,6 +455,32 @@
     .manual-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px}
     .manual-pane{display:none}
     .manual-pane.active{display:block}
+    .manual-nso-extra-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      margin-top:12px;
+    }
+    .manual-nso-extra{
+      position:relative;
+    }
+    .manual-nso-extra .remove-nso{
+      position:absolute;
+      right:7px;
+      top:25px;
+      width:26px;
+      height:26px;
+      padding:0;
+      border:0;
+      border-radius:7px;
+      background:#f3f6fa;
+      color:#66758a;
+      font-weight:900;
+      cursor:pointer;
+    }
+    .manual-nso-extra .field{padding-right:38px}
+    .manual-add-nso-row{margin-top:10px}
+    @media(max-width:900px){.manual-nso-extra-grid{grid-template-columns:1fr}}
     .section-divider{height:1px;background:var(--line);margin:18px 0}
     .count-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
     .count-box{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
@@ -1046,7 +1072,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">Armados</div>
-              <div class="panel-sub">Código asignado → descripción → NSO opcional → impresión</div>
+              <div class="panel-sub">Código asignado → descripción → NSO opcional → formato NSO Triple</div>
             </div>
             <span class="badge b-blue">Módulo independiente</span>
           </div>
@@ -1252,37 +1278,69 @@
                   <div class="panel-sub">Agregar o corregir un registro sin cargar nuevamente una base completa.</div>
 
                   <div class="manual-tabs">
-                    <button class="tab-btn active" data-manual="regulatory">NSO</button>
-                    <button class="tab-btn" data-manual="nr">Descripción NR</button>
+                    <button class="tab-btn active" data-manual="regulatory">Código a ingresar</button>
                     <button class="tab-btn" data-manual="armados">Códigos / Armados</button>
-                    <button class="tab-btn" data-manual="generalproducts">Descripción productos</button>
                   </div>
 
                   <div class="manual-pane active" id="manual-regulatory">
                     <div class="form-grid">
-                      <div><label>Código</label><input class="field" id="mCode"></div>
-                      <div><label>Categoría regulatoria</label><input class="field" id="mCategory"></div>
-                      <div><label>Descripción de producto (opcional)</label><input class="field" id="mDesc"></div>
-                      <div><label>Tipo forzado (opcional)</label>
-                        <select class="field" id="mForceType"><option value="">Automático</option><option value="normal">Normal</option><option value="larga">Larga</option><option value="triple">NSO Triple</option><option value="ancha">Ancha</option></select>
+                      <div>
+                        <label>Código</label>
+                        <input class="field" id="mCode">
                       </div>
-                      <div><label>NSO 1</label><input class="field" id="mNso1"></div>
-                      <div><label>NSO 2</label><input class="field" id="mNso2"></div>
-                      <div><label>NSO 3</label><input class="field" id="mNso3"></div>
-                      <div><label>Contenido / ingredientes (si aplica)</label><input class="field" id="mLongText"></div>
+
+                      <div>
+                        <label>Descripción de producto (Orisales)</label>
+                        <input class="field" id="mDesc">
+                      </div>
+
+                      <div>
+                        <label>Categoría regulatoria</label>
+                        <input class="field" id="mCategory">
+                      </div>
+
+                      <div>
+                        <label>NSO 1</label>
+                        <input class="field" id="mNso1">
+                      </div>
+
+                      <div>
+                        <label>NSO 2</label>
+                        <input class="field" id="mNso2">
+                      </div>
+
+                      <div>
+                        <label>Contenido (si aplica)</label>
+                        <input class="field" id="mLongText">
+                      </div>
                     </div>
+
+                    <div id="mNsoExtras" class="manual-nso-extra-grid"></div>
+
+                    <div class="manual-add-nso-row">
+                      <button class="btn btn-light btn-sm" type="button" id="addManualNso">＋ Añadir NSO</button>
+                    </div>
+
                     <button class="btn btn-primary mt12" id="saveMaster">Guardar / actualizar</button>
-                    <div class="master-list"><table><thead><tr><th>Código</th><th>Descripción</th><th>Categoría</th><th>NSO</th><th>Tipo</th><th></th></tr></thead><tbody id="masterTable"></tbody></table></div>
+
+                    <div class="master-list">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Código</th>
+                            <th>Descripción Orisales</th>
+                            <th>Categoría</th>
+                            <th>NSO</th>
+                            <th>Tipo</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody id="masterTable"></tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  <div class="manual-pane" id="manual-nr">
-                    <div class="form-grid">
-                      <div><label>Código</label><input class="field" id="nrCode"></div>
-                      <div><label>Descripción NR / Categoría completa</label><input class="field" id="nrCategory"></div>
-                    </div>
-                    <button class="btn btn-primary mt12" id="saveNr">Guardar Descripción NR</button>
-                    <div class="help">Este campo actualiza la categoría usada por el motor de clasificación y por la etiqueta.</div>
-                  </div>
+                  
 
                   <div class="manual-pane" id="manual-armados">
                     <div class="form-grid">
@@ -1309,15 +1367,7 @@
                     <div class="master-list"><table><thead><tr><th>Código</th><th>Descripción</th><th>NSO</th></tr></thead><tbody id="armadosTable"></tbody></table></div>
                   </div>
 
-                  <div class="manual-pane" id="manual-generalproducts">
-                    <div class="form-grid">
-                      <div><label>Código</label><input class="field" id="gpCode"></div>
-                      <div><label>Descripción de producto</label><input class="field" id="gpDesc"></div>
-                      <div><label>Unidades por caja (si existe)</label><input class="field" id="gpUnits"></div>
-                    </div>
-                    <button class="btn btn-primary mt12" id="saveGeneralProduct">Guardar Descripción producto</button>
-                    <div class="master-list"><table><thead><tr><th>Código</th><th>Descripción</th><th>Unidades por caja</th></tr></thead><tbody id="generalProductsTable"></tbody></table></div>
-                  </div>
+                  
 
                   </div>
 
@@ -1807,10 +1857,9 @@ const DEFAULT_DB = {
       barcode:{size:12,weight:400,align:"left",lines:1}
     },
     armados:{
-      code:{size:24,weight:900,align:"left",lines:1},
-      desc:{size:13,weight:900,align:"left",lines:2},
-      nso:{size:8,weight:600,align:"left",lines:1},
-      import:{size:7,weight:600,align:"left",lines:2},
+      code:{size:25,weight:900,align:"left",lines:1,stretchX:1},
+      nso:{size:10,weight:800,align:"left",lines:3,stretchX:1},
+      import:{size:7,weight:700,align:"left",lines:1,stretchX:1},
       barcode:{size:12,weight:400,align:"left",lines:1}
     }
   }
@@ -2187,11 +2236,11 @@ function referenceLayouts(){
       code:{x:190,y:31,w:28,h:60,rotation:90}
     }},
     armados:{w:104,h:200,unit:"dot",mmW:13,mmH:25,orientation:"vertical",items:{
-      code:{x:4,y:3,w:96,h:28,rotation:0},
-      nso:{x:4,y:32,w:58,h:14,rotation:0},
-      barcode:{x:4,y:49,w:36,h:147,rotation:90},
-      desc:{x:42,y:49,w:27,h:147,rotation:90},
-      import:{x:71,y:49,w:29,h:147,rotation:90}
+      // Armados usa la misma geometría aprobada de NSO Triple / Múltiple.
+      code:{x:4,y:3,w:96,h:26,rotation:0},
+      barcode:{x:4,y:32,w:40,h:164,rotation:90},
+      nso:{x:47,y:32,w:40,h:164,rotation:90},
+      import:{x:89,y:32,w:11,h:164,rotation:90}
     }}
   };
 }
@@ -2247,6 +2296,14 @@ function ensureEditorSchema(){
       if(DEFAULT_DB.templates.triple[key]) db.templates.triple[key]=structuredClone(DEFAULT_DB.templates.triple[key]);
     }
     db.settings.referenceLayoutVersion="zebra-reference-v6-exact-triple";
+    localStorage.setItem("bulkLabelStudioDB", JSON.stringify(db));
+  }
+
+  // v77: Armados adopta intencionalmente el mismo formato de NSO Triple.
+  if(db.settings.armadosTripleFormatVersion!=="v77"){
+    db.templates.armados=structuredClone(DEFAULT_DB.templates.armados);
+    db.templates.armados._layout=structuredClone(refs.armados);
+    db.settings.armadosTripleFormatVersion="v77";
     localStorage.setItem("bulkLabelStudioDB", JSON.stringify(db));
   }
 }
@@ -3084,7 +3141,7 @@ function renderLayoutLabel(product,type){
     if(k==="nso" && !String(text.nso||"").trim()) return "";
     if(k==="content" && !String(text.content||"").trim()) return "";
     if(k==="import" && !String(text.import||"").trim()) return "";
-    if(type==="triple" && k==="nso"){
+    if((type==="triple"||type==="armados") && k==="nso"){
       const p=tpl.nso||{size:12,weight:400,align:"left",lines:1};
       return `<div class="layout-item" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">${tripleNsoSegmentsHTML(text.nsos,L,p,"label")}</div>`;
     }
@@ -4705,23 +4762,28 @@ function exactArmadoCodeWidth(code){
   return n<=5?28:n===6?17:n===7?15:13;
 }
 function buildArmadoExactNormalPage(products){
-  // Armados reutiliza el formato físico Normal validado en Check Order.
+  // v77: Armados imprime con el mismo formato físico de NSO Triple / Múltiple.
   let z="^XA^MMT^PW470^LL208^LS0";
   const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
+  const nsoX=[58,71,82];
+
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
-    const b=col*120,code=String(p?.code||"").trim();
-    const desc=effectiveCategory(p),nso=(p?.nsos||[]).filter(Boolean)[0]||"";
-    z+=zplFieldTextFT(b+96,193,importer,"B",8,8);
-    z+=zplFieldTextFT(b+12,21,code,"N",17,exactArmadoCodeWidth(code));
-    z+=zplFieldTextFT(b+86,194,desc,"B",8,15);
-    z+=zplFieldTextFT(b+73,194,nso,"B",6,20);
-    if(code)z+=`^BY2,3,51^FT${b+64},192^BCB,,N,N^FH\\^FD${zdesignerCode128Payload(code)}^FS`;
+    const b=col*120;
+    const code=String(p?.code||"").trim();
+    const lines=(p?.nsos||[]).filter(Boolean).slice(0,3);
+
+    z+=zplFieldTextFT(b+96,188,importer,"B",12,8);
+    z+=zplFieldTextFT(b+9,20,code,"N",20,25);
+    lines.forEach((n,i)=>z+=zplFieldTextFT(b+nsoX[i],190,n,"B",8,20));
+    if(code)z+=`^BY2,3,36^FT${b+44},190^BCB,,N,N^FH\\^FD${zdesignerCode128Payload(code)}^FS`;
   });
+
   return z+="^PQ1,0,1,Y^XZ";
 }
+
 function nativeBarcodeSettings(type,code){
-  const heights={normal:51,triple:36,larga:41,ancha:39,armados:51};
+  const heights={normal:51,triple:36,larga:41,ancha:39,armados:36};
   return {symbology:"CODE128",module:2,ratio:3.0,height:heights[type]||36,mode:"A"};
 }
 function nativeBarcodeModule(type,code){
@@ -4916,7 +4978,20 @@ async function buildFourUpGroupZPL(items,type){
 }
 
 function buildArmadoProduct(v){
-  return {code:v?.code||"",description:"",nrCategory:v?.description||"",category:v?.description||"",nsos:[v?.nso||""].filter(Boolean),longText:""};
+  const desc=String(v?.description||"").trim();
+  const nsos=String(v?.nso||"")
+    .split(/\s*\/\s*|\s*\|\s*/)
+    .map(x=>x.trim())
+    .filter(Boolean);
+  return {
+    code:v?.code||"",
+    description:"",
+    nrCategory:"",
+    category:"",
+    // Mismo formato Triple: descripción del armado + NSO(s) como líneas verticales.
+    nsos:[desc,...nsos].filter(Boolean),
+    longText:""
+  };
 }
 function buildGeneralZPL(data,qty=1){
   const T=db.settings.generalTemplate,S=T.styles||{},P=transformPrintLayout({w:T.w,h:T.h,items:T.items||{}},"general"),I=P.items||{},fs=P.fontScale;
@@ -5124,7 +5199,7 @@ function searchArmado(){
     document.getElementById("vialPreview").innerHTML="";return;
   }
   document.getElementById("vialInfo").innerHTML=`<strong>Código: ${escapeHTML(v.code||"")}</strong><br>${escapeHTML(v.description||"")}${v.nso?`<br>${escapeHTML(v.nso)}`:""}`;
-  const p={code:v.code||"",description:"",nrCategory:v.description||"",category:v.description||"",nsos:[v.nso||""].filter(Boolean),longText:""};
+  const p=buildArmadoProduct(v);
   document.getElementById("vialPreview").innerHTML=renderLayoutLabel(p,"armados");
 }
 document.getElementById("vialFind").addEventListener("click",searchArmado);
@@ -5694,9 +5769,10 @@ function renderMasterTable(){
   const arr=Object.values(db.products);
   tbody.innerHTML=arr.map(p=>{
     const c=classifyProduct(p), info=typeInfo[c.type];
+    const orisales=(generalProductRecord(p.code)?.description || p.description || "");
     return `<tr>
       <td>${escapeHTML(p.code)}</td>
-      <td>${escapeHTML(p.description)}</td>
+      <td>${escapeHTML(orisales)}</td>
       <td>${escapeHTML(effectiveCategory(p))}</td>
       <td>${escapeHTML((p.nsos||[]).filter(Boolean).join(" / "))}</td>
       <td><span class="badge ${info.badge}" title="${escapeHTML(c.reason||"")}">${info.label}</span></td>
@@ -5704,29 +5780,114 @@ function renderMasterTable(){
     </tr>`
   }).join("");
 }
+
+function clearManualNsoExtras(){
+  const host=document.getElementById("mNsoExtras");
+  if(host)host.innerHTML="";
+}
+
+function addManualNsoField(value=""){
+  const host=document.getElementById("mNsoExtras");
+  if(!host)return;
+  const n=3+host.querySelectorAll(".manual-nso-extra").length;
+  const wrap=document.createElement("div");
+  wrap.className="manual-nso-extra";
+  wrap.innerHTML=`
+    <label>NSO ${n}</label>
+    <input class="field m-nso-extra-input" value="${escapeHTML(value)}">
+    <button class="remove-nso" type="button" title="Eliminar este NSO">×</button>
+  `;
+  wrap.querySelector(".remove-nso")?.addEventListener("click",()=>{
+    wrap.remove();
+    renumberManualNsoExtras();
+  });
+  host.appendChild(wrap);
+}
+
+function renumberManualNsoExtras(){
+  document.querySelectorAll("#mNsoExtras .manual-nso-extra").forEach((wrap,i)=>{
+    const label=wrap.querySelector("label");
+    if(label)label.textContent=`NSO ${i+3}`;
+  });
+}
+
+function setManualNsos(values=[]){
+  const vals=(values||[]).map(x=>String(x||"").trim()).filter(Boolean);
+  document.getElementById("mNso1").value=vals[0]||"";
+  document.getElementById("mNso2").value=vals[1]||"";
+  clearManualNsoExtras();
+  vals.slice(2).forEach(v=>addManualNsoField(v));
+}
+
+function getManualNsos(){
+  const vals=[
+    document.getElementById("mNso1")?.value||"",
+    document.getElementById("mNso2")?.value||"",
+    ...[...document.querySelectorAll("#mNsoExtras .m-nso-extra-input")].map(x=>x.value||"")
+  ].map(x=>x.trim()).filter(Boolean);
+  return [...new Set(vals)];
+}
+
+document.getElementById("addManualNso")?.addEventListener("click",()=>addManualNsoField(""));
+
 window.editMaster=function(code){
   const p=db.products[code]; if(!p)return;
-  mCode.value=p.code;mDesc.value=p.description;mCategory.value=effectiveCategory(p);mForceType.value=p.manualType||"";
-  mNso1.value=p.nsos?.[0]||"";mNso2.value=p.nsos?.[1]||"";mNso3.value=p.nsos?.[2]||"";mLongText.value=p.longText||"";
+  document.getElementById("mCode").value=p.code||"";
+  document.getElementById("mDesc").value=generalProductRecord(code)?.description || p.description || "";
+  document.getElementById("mCategory").value=effectiveCategory(p)||"";
+  setManualNsos(p.nsos||[]);
+  document.getElementById("mLongText").value=p.longText||"";
   toast("Producto cargado para edición");
 };
+
 document.getElementById("saveMaster").addEventListener("click",async()=>{
-  const code=normalizeCode(mCode.value); if(!code)return toast("Ingresa un código");
+  const code=normalizeCode(document.getElementById("mCode").value);
+  if(!code)return toast("Ingresa un código");
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado");
+
   const prev=db.products[code]||{};
+  const desc=document.getElementById("mDesc").value.trim();
+  const category=document.getElementById("mCategory").value.trim();
+  const nsos=getManualNsos();
+  const longText=document.getElementById("mLongText").value.trim();
+
   db.products[code]={
     ...prev,
     code,
-    description:mDesc.value.trim(),
-    category:mCategory.value.trim(),
-    nrCategory:mCategory.value.trim() || prev.nrCategory || "",
-    nsos:[mNso1.value.trim(),mNso2.value.trim(),mNso3.value.trim()].filter(Boolean),
-    longText:mLongText.value.trim(),
-    manualType:mForceType.value,
-    forceType:mForceType.value,
-    forceSource:mForceType.value?"manual":""
+    description:desc || prev.description || "",
+    category:category || prev.category || "",
+    nrCategory:category || prev.nrCategory || "",
+    nsos,
+    longText,
+    // El ingreso manual queda en clasificación automática.
+    manualType:"",
+    forceType:"",
+    forceSource:""
   };
-  saveDB();renderMasterTable();updateMasterCounts();toast("Producto guardado");
+
+  // "Descripción de producto (Orisales)" reemplaza también el antiguo
+  // ingreso manual de "Descripción productos".
+  if(desc){
+    const gcode=normalizeGeneralCode(code);
+    if(gcode){
+      db.generalProducts=db.generalProducts||{};
+      const oldGeneral=generalProductRecord(code)||db.generalProducts[gcode]||{};
+      const rec={
+        ...oldGeneral,
+        code:gcode,
+        description:desc,
+        unitsPerBox:oldGeneral.unitsPerBox||""
+      };
+      db.generalProducts[gcode]=rec;
+      try{await idbPutGeneralProduct(rec);}catch(err){console.error("Orisales IndexedDB",err);}
+    }
+  }
+
+  saveDB();
+  renderMasterTable();
+  renderGeneralProductsTable?.();
+  updateMasterCounts();
+  toast("Código guardado");
 });
 
 /* ---------- Cargas de bases específicas ---------- */
