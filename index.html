@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v81 · Firebase automático</title>
+  <title>Labeling Operations v82 · Firebase fix</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -966,7 +966,7 @@
         <div class="page-sub" id="pageSub">Clasificación automática y cola de impresión</div>
       </div>
       <div class="top-actions">
-        <span class="pill" id="dbStatus">Local: IndexedDB + configuración · Firebase pendiente</span>
+        <span class="pill" id="dbStatus">Local: IndexedDB + configuración · conectando Firebase...</span>
         <span class="pill">25/09/2026</span>
       </div>
     </header>
@@ -1803,7 +1803,7 @@
 
                   <div class="source-card mt16">
                     <h4>Estado y sincronización</h4>
-                    <div id="fbSyncStatus" class="source-status warn">Esperando al SDK de Firebase...</div>
+                    <div id="fbSyncStatus" class="source-status warn">Cargando Firebase...</div>
 
                     <div class="row mt12" style="gap:8px;flex-wrap:wrap">
                       <button class="btn btn-outline" id="fbTestConnection">Probar conexión</button>
@@ -7982,6 +7982,12 @@ document.getElementById("fbDownloadCloud")?.addEventListener("click",async()=>{
 });
 
 window.addEventListener("labeling-firebase-ready",firebaseReadyUI);
+window.addEventListener("labeling-firebase-error",e=>{
+  firebaseBootstrapInProgress=false;
+  const msg=e?.detail?.message||"Firebase no disponible";
+  dbStatus.textContent="Modo local · Firebase no disponible";
+  fbSetStatus(msg,false);
+});
 if(window.FirebaseBridge?.ready)firebaseReadyUI();
 
 /* ---------- Backup ---------- */
@@ -8042,155 +8048,210 @@ renderBatchInput([]);
 runDataAudit(false);
 </script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import {
-  getFirestore, doc, getDoc, setDoc, collection, getDocs,
-  writeBatch, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-const firebaseConfig={
-  apiKey:"AIzaSyDtBmae_2udmV3bLv0lgyindLArofdFZf4",
-  authDomain:"labeling-operations.firebaseapp.com",
-  projectId:"labeling-operations",
-  storageBucket:"labeling-operations.firebasestorage.app",
-  messagingSenderId:"1037633076220",
-  appId:"1:1037633076220:web:8ae41c74be93d5eb1b1079"
-};
-
-const app=initializeApp(firebaseConfig);
-const firestore=getFirestore(app);
-const DATA_COLLECTION="labeling_data";
-const SYSTEM_COLLECTION="_system";
-const BUCKETS={products:32,vials:8,generalProducts:64};
-
-function bucketIndex(code,count){
-  const s=String(code||"");
-  let h=2166136261;
-  for(let i=0;i<s.length;i++){
-    h^=s.charCodeAt(i);
-    h=Math.imul(h,16777619);
-  }
-  return (h>>>0)%count;
-}
-function bucketId(kind,index){
-  return `${kind}_${String(index).padStart(3,"0")}`;
-}
-function buildBucket(kind,obj,index){
-  const count=BUCKETS[kind];
-  const records={};
-  for(const [code,rec] of Object.entries(obj||{})){
-    if(bucketIndex(code,count)===index)records[code]=rec;
-  }
-  return records;
-}
-async function writeDocs(entries){
-  for(let i=0;i<entries.length;i+=400){
-    const batch=writeBatch(firestore);
-    for(const entry of entries.slice(i,i+400)){
-      batch.set(entry.ref,entry.data);
-    }
-    await batch.commit();
-  }
-}
-async function uploadKind(kind,obj){
-  const count=BUCKETS[kind];
-  const entries=[];
-  for(let i=0;i<count;i++){
-    entries.push({
-      ref:doc(firestore,DATA_COLLECTION,bucketId(kind,i)),
-      data:{
-        kind,
-        bucket:i,
-        records:buildBucket(kind,obj,i),
-        updatedAt:serverTimestamp()
-      }
-    });
-  }
-  await writeDocs(entries);
-}
-async function uploadChangedBuckets(kind,obj,codes){
-  const count=BUCKETS[kind];
-  const buckets=[...new Set((codes||[]).map(c=>bucketIndex(c,count)))];
-  const entries=buckets.map(i=>({
-    ref:doc(firestore,DATA_COLLECTION,bucketId(kind,i)),
-    data:{
-      kind,
-      bucket:i,
-      records:buildBucket(kind,obj,i),
-      updatedAt:serverTimestamp()
-    }
-  }));
-  if(entries.length)await writeDocs(entries);
-}
-async function uploadSharedState(sharedState){
-  await setDoc(
-    doc(firestore,SYSTEM_COLLECTION,"app_config"),
-    {
-      ...sharedState,
-      schemaVersion:1,
-      updatedAt:serverTimestamp()
-    }
-  );
-}
-async function uploadAll(payload){
-  await uploadKind("products",payload.products||{});
-  await uploadKind("vials",payload.vials||{});
-  await uploadKind("generalProducts",payload.generalProducts||{});
-  await uploadSharedState(payload.sharedState||{});
-  await setDoc(
-    doc(firestore,SYSTEM_COLLECTION,"manifest"),
-    {
-      schemaVersion:1,
-      project:"labeling-operations",
-      counts:{
-        products:Object.keys(payload.products||{}).length,
-        vials:Object.keys(payload.vials||{}).length,
-        generalProducts:Object.keys(payload.generalProducts||{}).length
-      },
-      buckets:BUCKETS,
-      updatedAt:serverTimestamp()
-    }
-  );
-}
-async function downloadAll(){
-  const snap=await getDocs(collection(firestore,DATA_COLLECTION));
-  const products={},vials={},generalProducts={};
-  snap.forEach(d=>{
-    const data=d.data()||{};
-    const target=data.kind==="products"?products:data.kind==="vials"?vials:data.kind==="generalProducts"?generalProducts:null;
-    if(target)Object.assign(target,data.records||{});
-  });
-  const cfgSnap=await getDoc(doc(firestore,SYSTEM_COLLECTION,"app_config"));
-  const sharedState=cfgSnap.exists()?cfgSnap.data():null;
-  if(sharedState){
-    delete sharedState.updatedAt;
-    delete sharedState.schemaVersion;
-  }
-  return {products,vials,generalProducts,sharedState};
-}
-async function testConnection(){
-  const ref=doc(firestore,SYSTEM_COLLECTION,"connection_test");
-  await setDoc(ref,{
-    project:"labeling-operations",
-    testedAt:serverTimestamp(),
-    userAgent:navigator.userAgent.slice(0,180)
-  },{merge:true});
-  await getDoc(ref);
-  return true;
-}
-
-window.FirebaseBridge={
-  ready:true,
-  firestore,
-  uploadAll,
-  downloadAll,
-  uploadSharedState,
-  uploadChangedBuckets,
-  testConnection
-};
-window.dispatchEvent(new CustomEvent("labeling-firebase-ready"));
+<script
+  src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"
+  onerror="window.__labelingFirebaseSdkError='No se pudo cargar firebase-app-compat.js';">
 </script>
+<script
+  src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"
+  onerror="window.__labelingFirebaseSdkError='No se pudo cargar firebase-firestore-compat.js';">
+</script>
+<script>
+(function initLabelingFirebaseCompat(){
+  const firebaseConfig={
+    apiKey:"AIzaSyDtBmae_2udmV3bLv0lgyindLArofdFZf4",
+    authDomain:"labeling-operations.firebaseapp.com",
+    projectId:"labeling-operations",
+    storageBucket:"labeling-operations.firebasestorage.app",
+    messagingSenderId:"1037633076220",
+    appId:"1:1037633076220:web:8ae41c74be93d5eb1b1079"
+  };
+
+  function fail(message){
+    console.error("Firebase SDK:",message);
+    const status=document.getElementById("fbSyncStatus");
+    const badge=document.getElementById("fbConnectionBadge");
+    const top=document.getElementById("dbStatus");
+    if(status){
+      status.className="source-status warn";
+      status.textContent=message;
+    }
+    if(badge)badge.textContent="Firebase no disponible";
+    if(top)top.textContent="Modo local · Firebase no disponible";
+    window.dispatchEvent(new CustomEvent("labeling-firebase-error",{detail:{message}}));
+  }
+
+  try{
+    if(window.__labelingFirebaseSdkError){
+      fail(window.__labelingFirebaseSdkError);
+      return;
+    }
+
+    if(!window.firebase){
+      fail("No se pudo inicializar el SDK de Firebase. Revisa Internet o bloqueo de www.gstatic.com.");
+      return;
+    }
+
+    if(!firebase.apps.length){
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    const firestore=firebase.firestore();
+    const DATA_COLLECTION="labeling_data";
+    const SYSTEM_COLLECTION="_system";
+    const BUCKETS={products:32,vials:8,generalProducts:64};
+
+    function serverTimestamp(){
+      return firebase.firestore.FieldValue.serverTimestamp();
+    }
+
+    function bucketIndex(code,count){
+      const s=String(code||"");
+      let h=2166136261;
+      for(let i=0;i<s.length;i++){
+        h^=s.charCodeAt(i);
+        h=Math.imul(h,16777619);
+      }
+      return (h>>>0)%count;
+    }
+
+    function bucketId(kind,index){
+      return `${kind}_${String(index).padStart(3,"0")}`;
+    }
+
+    function buildBucket(kind,obj,index){
+      const count=BUCKETS[kind];
+      const records={};
+      for(const [code,rec] of Object.entries(obj||{})){
+        if(bucketIndex(code,count)===index)records[code]=rec;
+      }
+      return records;
+    }
+
+    async function writeDocs(entries){
+      for(let i=0;i<entries.length;i+=400){
+        const batch=firestore.batch();
+        for(const entry of entries.slice(i,i+400)){
+          batch.set(entry.ref,entry.data);
+        }
+        await batch.commit();
+      }
+    }
+
+    async function uploadKind(kind,obj){
+      const count=BUCKETS[kind];
+      const entries=[];
+      for(let i=0;i<count;i++){
+        entries.push({
+          ref:firestore.collection(DATA_COLLECTION).doc(bucketId(kind,i)),
+          data:{
+            kind,
+            bucket:i,
+            records:buildBucket(kind,obj,i),
+            updatedAt:serverTimestamp()
+          }
+        });
+      }
+      await writeDocs(entries);
+    }
+
+    async function uploadChangedBuckets(kind,obj,codes){
+      const count=BUCKETS[kind];
+      const buckets=[...new Set((codes||[]).map(c=>bucketIndex(c,count)))];
+      const entries=buckets.map(i=>({
+        ref:firestore.collection(DATA_COLLECTION).doc(bucketId(kind,i)),
+        data:{
+          kind,
+          bucket:i,
+          records:buildBucket(kind,obj,i),
+          updatedAt:serverTimestamp()
+        }
+      }));
+      if(entries.length)await writeDocs(entries);
+    }
+
+    async function uploadSharedState(sharedState){
+      await firestore.collection(SYSTEM_COLLECTION).doc("app_config").set({
+        ...sharedState,
+        schemaVersion:1,
+        updatedAt:serverTimestamp()
+      });
+    }
+
+    async function uploadAll(payload){
+      await uploadKind("products",payload.products||{});
+      await uploadKind("vials",payload.vials||{});
+      await uploadKind("generalProducts",payload.generalProducts||{});
+      await uploadSharedState(payload.sharedState||{});
+
+      await firestore.collection(SYSTEM_COLLECTION).doc("manifest").set({
+        schemaVersion:1,
+        project:"labeling-operations",
+        counts:{
+          products:Object.keys(payload.products||{}).length,
+          vials:Object.keys(payload.vials||{}).length,
+          generalProducts:Object.keys(payload.generalProducts||{}).length
+        },
+        buckets:BUCKETS,
+        updatedAt:serverTimestamp()
+      });
+    }
+
+    async function downloadAll(){
+      const snap=await firestore.collection(DATA_COLLECTION).get();
+      const products={},vials={},generalProducts={};
+
+      snap.forEach(d=>{
+        const data=d.data()||{};
+        const target=
+          data.kind==="products" ? products :
+          data.kind==="vials" ? vials :
+          data.kind==="generalProducts" ? generalProducts :
+          null;
+
+        if(target)Object.assign(target,data.records||{});
+      });
+
+      const cfgSnap=await firestore.collection(SYSTEM_COLLECTION).doc("app_config").get();
+      const sharedState=cfgSnap.exists ? cfgSnap.data() : null;
+
+      if(sharedState){
+        delete sharedState.updatedAt;
+        delete sharedState.schemaVersion;
+      }
+
+      return {products,vials,generalProducts,sharedState};
+    }
+
+    async function testConnection(){
+      const ref=firestore.collection(SYSTEM_COLLECTION).doc("connection_test");
+      await ref.set({
+        project:"labeling-operations",
+        testedAt:serverTimestamp(),
+        userAgent:navigator.userAgent.slice(0,180)
+      },{merge:true});
+      await ref.get();
+      return true;
+    }
+
+    window.FirebaseBridge={
+      ready:true,
+      firestore,
+      uploadAll,
+      downloadAll,
+      uploadSharedState,
+      uploadChangedBuckets,
+      testConnection
+    };
+
+    window.dispatchEvent(new CustomEvent("labeling-firebase-ready"));
+  }catch(err){
+    fail("Firebase no pudo iniciar: "+(err?.message||err));
+  }
+})();
+</script>
+
 
 </body>
 </html>
