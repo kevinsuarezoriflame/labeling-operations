@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v78 · Armados editor</title>
+  <title>Labeling Operations v79 · Auditoría detalle</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -509,6 +509,80 @@
     }
     .vial-editor-note{
       font-size:11px;color:var(--muted);font-weight:700;margin-top:6px
+    }
+
+    /* v79 · Auditoría detallada por código */
+    .audit-detail{
+      margin-top:12px;
+      border:1px solid #cbdaf2;
+      border-radius:14px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .audit-detail.hidden{display:none}
+    .audit-detail-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      background:#f4f8ff;
+      border-bottom:1px solid #dce7f7;
+    }
+    .audit-detail-head strong{font-size:14px}
+    .audit-detail-body{padding:14px}
+    .audit-section{
+      border:1px solid var(--line);
+      border-radius:12px;
+      overflow:hidden;
+      margin-bottom:12px;
+      background:#fff;
+    }
+    .audit-section:last-child{margin-bottom:0}
+    .audit-section-title{
+      padding:9px 11px;
+      font-weight:900;
+      font-size:12px;
+      background:#f7f9fc;
+      border-bottom:1px solid var(--line);
+    }
+    .audit-list{
+      display:grid;
+      grid-template-columns:minmax(190px,260px) minmax(0,1fr);
+    }
+    .audit-key,.audit-value{
+      padding:8px 11px;
+      border-bottom:1px solid #edf1f6;
+      font-size:12px;
+      line-height:1.35;
+    }
+    .audit-key{
+      font-weight:800;
+      color:#526079;
+      background:#fbfcfe;
+    }
+    .audit-value{
+      color:#142036;
+      overflow-wrap:anywhere;
+    }
+    .audit-list > :nth-last-child(-n+2){border-bottom:0}
+    .audit-empty{color:#8a95a8;font-style:italic}
+    .audit-print-section{
+      border-color:#b9d3ff;
+      background:#fbfdff;
+    }
+    .audit-print-section .audit-section-title{
+      background:#eef5ff;
+      color:#1557b0;
+    }
+    .audit-status-ok{color:#137a3a;font-weight:900}
+    .audit-status-warn{color:#b42318;font-weight:900}
+    @media(max-width:850px){
+      .audit-list{grid-template-columns:1fr}
+      .audit-key{border-bottom:0;padding-bottom:3px}
+      .audit-value{padding-top:3px}
+      .audit-list > :nth-last-child(-n+2){border-bottom:1px solid #edf1f6}
+      .audit-list > :last-child{border-bottom:0}
     }
 
     .section-divider{height:1px;background:var(--line);margin:18px 0}
@@ -1493,6 +1567,14 @@
                       <button class="btn btn-primary" type="button" id="auditAllBtn">Validar todas las bases</button>
                     </div>
                     <div id="auditSummary" class="source-status" style="margin-top:10px">Aún no se ha ejecutado una validación.</div>
+
+                    <div id="auditDetail" class="audit-detail hidden">
+                      <div class="audit-detail-head">
+                        <strong id="auditDetailTitle">Detalle del código</strong>
+                        <span class="pill" id="auditDetailType">—</span>
+                      </div>
+                      <div class="audit-detail-body" id="auditDetailBody"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6851,29 +6933,234 @@ async function importGeneralProductsFile(file){
   return created+updated;
 }
 
-function auditOneProduct(code){
-  const p=db.products?.[normalizeCode(code)];
-  if(!p)return {ok:false,html:`<strong>${escapeHTML(code)}</strong>: no existe en la base consolidada.`};
-  const cls=classifyProduct(p);
-  const issues=[];
-  const nsoCount=countNsos(p);
-  const clsType=cls.type;
-  const validNsoOnly=(nsoCount===1 && clsType==="normal") || (nsoCount>=2 && nsoCount<=4 && clsType==="triple");
-  if(!effectiveCategory(p) && !validNsoOnly)issues.push("Falta descripción/categoría regulatoria");
-
-  // Detectar contaminación comercial, aunque el render ya la bloquee.
-  const commercial=normalizeCompareText(db.generalProducts?.[p.code]?.description || p.description || "");
-  for(const key of ["nrCategory","nsoCategory"]){
-    const value=normalizeCompareText(p[key]||"");
-    if(commercial && value && value===commercial)issues.push(`${key} contiene nombre comercial; se omite en Bulk`);
-  }
-  if((p.sourceType==="ancha")&&!String(p.longText||"").trim())issues.push("La fuente indica Ancha pero falta CONTIENE / ingredientes");
-  if((p.sourceType==="triple")&&countNsos(p)<2)issues.push("La fuente indica NSO Triple pero hay menos de 2 NSO");
-  if([p.category,p.nrCategory,p.nsoCategory].some(v=>looksLikeNSO(v)))issues.push("Hay un NSO todavía guardado dentro de un campo de descripción");
-  const badNsos=(p.nsos||[]).filter(v=>!looksLikeNSO(v));if(badNsos.length)issues.push("Hay valores no válidos dentro de NSO");
-  const content=String(p.longText||"").trim();
-  return {ok:issues.length===0,html:`<strong>${escapeHTML(p.code)}</strong> · ${escapeHTML(effectiveCategory(p)||"Sin categoría")}<br>NSO: ${escapeHTML((p.nsos||[]).join(" / ")||"—")}<br>Contenido: ${escapeHTML(content||"—")}<br>Fuente: ${escapeHTML(p.sourceType||"sin referencia")} ${p.sourceSheets?.length?`· Hojas: ${escapeHTML(p.sourceSheets.join(", "))}`:""} · Clasificación final: <strong>${escapeHTML(typeInfo[cls.type]?.label||cls.type)}</strong><br>${issues.length?`<span style="color:#b42318">⚠ ${issues.map(escapeHTML).join(" · ")}</span>`:`<span style="color:#137a3a">✓ Registro íntegro para los datos disponibles</span>`}`};
+function auditEmpty(value){
+  const s=Array.isArray(value)
+    ? value.filter(Boolean).join(" / ")
+    : String(value??"").trim();
+  return s
+    ? escapeHTML(s)
+    : `<span class="audit-empty">Sin dato</span>`;
 }
+
+function auditBool(value){
+  return value
+    ? `<span class="audit-status-ok">Sí</span>`
+    : `<span class="audit-empty">No</span>`;
+}
+
+function auditRows(rows){
+  return `<div class="audit-list">${
+    rows.map(([k,v])=>`<div class="audit-key">${escapeHTML(k)}</div><div class="audit-value">${v}</div>`).join("")
+  }</div>`;
+}
+
+function auditSection(title,rows,extraClass=""){
+  return `<div class="audit-section ${extraClass}">
+    <div class="audit-section-title">${escapeHTML(title)}</div>
+    ${auditRows(rows)}
+  </div>`;
+}
+
+function auditFindVial(rawCode){
+  const key=compactCode(rawCode);
+  if(!key)return null;
+  return Object.values(db.vials||{}).find(v=>compactCode(v?.code||"")===key)||null;
+}
+
+function auditProductPayload(rawCode){
+  const code=normalizeCode(rawCode);
+  const master=db.products?.[code]||null;
+  const general=generalProductRecord(code)||db.generalProducts?.[normalizeGeneralCode(code)]||null;
+  const vial=auditFindVial(code);
+
+  // Debe replicar la lógica de Centro de impresión:
+  // si solo existe en Descripción productos, sigue siendo un código conocido.
+  const resolved=master || (general ? {
+    code,
+    description:general.description||"",
+    category:"",
+    nrCategory:"",
+    nsoCategory:"",
+    nsos:[],
+    longText:"",
+    sourceType:"",
+    sourcePresence:"generalProducts"
+  } : null);
+
+  return {code,master,general,vial,resolved};
+}
+
+function auditOneProduct(code){
+  const data=auditProductPayload(code);
+  const {master:p,general,vial,resolved}=data;
+
+  if(!resolved && !vial){
+    return {
+      ok:false,
+      found:false,
+      data,
+      cls:{type:"review",reason:"Código no existe en ninguna de las bases consultadas"},
+      issues:["Código no encontrado"],
+      html:`<strong>${escapeHTML(code)}</strong>: no existe en Asuntos regulatorios, Descripción productos ni Armados.`
+    };
+  }
+
+  const cls=resolved ? classifyProduct(resolved) : {type:"review",reason:"Existe únicamente en Armados; no pertenece al flujo Bulk"};
+  const issues=[];
+
+  if(p){
+    const nsoCount=countNsos(p);
+    const clsType=cls.type;
+    const validNsoOnly=(nsoCount===1 && clsType==="normal") || (nsoCount>=2 && nsoCount<=4 && clsType==="triple");
+    if(!effectiveCategory(p) && !validNsoOnly && (String(p.longText||"").trim() || p.sourceType))
+      issues.push("Falta descripción/categoría regulatoria");
+
+    const commercial=normalizeCompareText(general?.description || p.description || "");
+    for(const key of ["nrCategory","nsoCategory"]){
+      const value=normalizeCompareText(p[key]||"");
+      if(commercial && value && value===commercial)issues.push(`${key} contiene nombre comercial; se omite en Bulk`);
+    }
+
+    if((p.sourceType==="ancha")&&!String(p.longText||"").trim())
+      issues.push("La fuente indica Ancha pero falta CONTIENE / ingredientes");
+
+    if((p.sourceType==="triple")&&countNsos(p)<2)
+      issues.push("La fuente indica NSO Triple pero hay menos de 2 NSO");
+
+    if([p.category,p.nrCategory,p.nsoCategory].some(v=>looksLikeNSO(v)))
+      issues.push("Hay un NSO todavía guardado dentro de un campo de descripción");
+
+    const badNsos=(p.nsos||[]).filter(v=>!looksLikeNSO(v));
+    if(badNsos.length)issues.push("Hay valores no válidos dentro de NSO");
+  }
+
+  const isBulkKnown=!!resolved;
+  const ok=isBulkKnown && issues.length===0;
+  const typeLabel=isBulkKnown ? (typeInfo[cls.type]?.label||cls.type) : "Solo Armados";
+
+  return {
+    ok,
+    found:true,
+    data,
+    cls,
+    issues,
+    html:`<strong>${escapeHTML(data.code)}</strong> · Clasificación actual: <strong>${escapeHTML(typeLabel)}</strong> · ${escapeHTML(cls.reason||"Sin motivo")}<br>${
+      issues.length
+        ? `<span style="color:#b42318">⚠ ${issues.map(escapeHTML).join(" · ")}</span>`
+        : `<span style="color:#137a3a">✓ Registro leído correctamente para los datos disponibles</span>`
+    }`
+  };
+}
+
+function renderAuditDetail(result){
+  const box=document.getElementById("auditDetail");
+  const body=document.getElementById("auditDetailBody");
+  const title=document.getElementById("auditDetailTitle");
+  const typePill=document.getElementById("auditDetailType");
+  if(!box||!body)return;
+
+  box.classList.remove("hidden");
+
+  const {data,cls,issues}=result;
+  const {code,master:p,general,vial,resolved}=data;
+  const typeLabel=resolved ? (typeInfo[cls.type]?.label||cls.type) : (vial?"Solo Armados":"Revisión");
+
+  if(title)title.textContent=`Detalle completo · ${code}`;
+  if(typePill)typePill.textContent=typeLabel;
+
+  if(!resolved && !vial){
+    body.innerHTML=auditSection("Resultado",[
+      ["Código",auditEmpty(code)],
+      ["Estado",`<span class="audit-status-warn">No encontrado en ninguna base</span>`],
+      ["Clasificación","Revisión"],
+      ["Motivo",auditEmpty(cls.reason)]
+    ]);
+    return;
+  }
+
+  const nsos=(p?.nsos||[]).filter(Boolean);
+  const nsoRows=nsos.length
+    ? nsos.map((n,i)=>[`NSO ${i+1}`,auditEmpty(n)])
+    : [["NSO",`<span class="audit-empty">Sin dato</span>`]];
+
+  const orisales=general?.description || p?.description || "";
+  const effectiveReg=resolved ? effectiveCategory(resolved) : "";
+  const content=String(p?.longText||"").trim();
+
+  const currentRows=[
+    ["Código",auditEmpty(code)],
+    ["Existe en Asuntos regulatorios",auditBool(!!p)],
+    ["Existe en Descripción productos",auditBool(!!general)],
+    ["Existe en Armados",auditBool(!!vial)],
+    ["Descripción de producto (Orisales)",auditEmpty(orisales)],
+    ["Descripción regulatoria efectiva",auditEmpty(effectiveReg)],
+    ["Categoría regulatoria (campo base)",auditEmpty(p?.category)],
+    ["Descripción NR",auditEmpty(p?.nrCategory)],
+    ["Categoría / descripción desde base NSO",auditEmpty(p?.nsoCategory)],
+    ...nsoRows,
+    ["Contenido / ingredientes",auditEmpty(content)],
+    ["Tipo indicado por fuente",auditEmpty(p?.sourceType)],
+    ["Tipo manual / forzado",auditEmpty(p?.manualType || p?.forceType)],
+    ["Hojas / fuentes de origen",auditEmpty(p?.sourceSheets||[])],
+    ["Unidades por caja",auditEmpty(general?.unitsPerBox)],
+    ["Código para buscar NSO (solo consulta)",`<span class="audit-empty">No se almacena; se usa únicamente durante la consulta manual de Armados</span>`]
+  ];
+
+  const armadoRows=[
+    ["Código / Armado",auditEmpty(vial?.code)],
+    ["Descripción del armado",auditEmpty(vial?.description)],
+    ["NSO guardado en armado",auditEmpty(vial?.nso)]
+  ];
+
+  const classificationRows=[
+    ["Clasificación final",`<strong>${escapeHTML(typeLabel)}</strong>`],
+    ["Motivo de clasificación",auditEmpty(cls.reason)],
+    ["Estado de integridad",issues.length
+      ? `<span class="audit-status-warn">⚠ ${issues.map(escapeHTML).join(" · ")}</span>`
+      : `<span class="audit-status-ok">✓ Sin inconsistencias críticas detectadas</span>`]
+  ];
+
+  let printRows=[];
+  if(resolved && cls.type!=="review"){
+    const printModel=bulkDisplayModel(resolved,cls.type);
+    const printedNsos=(printModel.nsos||[]).filter(Boolean);
+
+    printRows=[
+      ["Tipo de etiqueta",`<strong>${escapeHTML(typeInfo[cls.type]?.label||cls.type)}</strong>`],
+      ["Código impreso",auditEmpty(printModel.code)],
+      ["Código de barras",auditEmpty(printModel.code)],
+      ["Descripción / categoría impresa",auditEmpty(printModel.desc)],
+      ...(
+        printedNsos.length
+          ? printedNsos.map((n,i)=>[`NSO impreso ${i+1}`,auditEmpty(n)])
+          : [["NSO impreso",`<span class="audit-empty">No se imprimirá NSO</span>`]]
+      ),
+      ["Contenido impreso",auditEmpty(printModel.content)],
+      ["Importador",auditEmpty(printModel.import)],
+      ["Descripción Orisales en Bulk",`<span class="audit-empty">${orisales ? "Existe en la base, pero no se usa como descripción regulatoria en Bulk" : "Sin dato"}</span>`]
+    ];
+  }else if(resolved && cls.type==="review"){
+    printRows=[
+      ["Tipo de etiqueta","Revisión"],
+      ["Estado",`<span class="audit-status-warn">No se enviará automáticamente a impresión hasta resolver la revisión</span>`],
+      ["Motivo",auditEmpty(cls.reason)]
+    ];
+  }else{
+    printRows=[
+      ["Flujo","Armados"],
+      ["Código",auditEmpty(vial?.code)],
+      ["Descripción / NSO",auditEmpty([vial?.description,vial?.nso].filter(Boolean))],
+      ["Observación",`<span class="audit-empty">Este registro pertenece al módulo independiente de Armados</span>`]
+    ];
+  }
+
+  body.innerHTML=
+    auditSection("Datos actuales del código",currentRows)+
+    (vial ? auditSection("Datos de Armados",armadoRows) : "")+
+    auditSection("Clasificación actual",classificationRows)+
+    auditSection("Así se enviará a la etiqueta",printRows,"audit-print-section");
+}
+
 function runDataAudit(showToast=true){
   const products=Object.values(db.products||{});let critical=0,swap=0,wideMissing=0,tripleMissing=0,missingCategory=0,nsoOnlyValid=0;
   for(const p of products){
@@ -6911,11 +7198,24 @@ bindSourceFile("fileArmados",importArmadosFile);
 bindSourceFile("fileGeneralProducts",importGeneralProductsFile);
 
 document.getElementById("auditAllBtn")?.addEventListener("click",()=>{repairAllProducts();saveDB();renderMasterTable();runDataAudit(true);});
-document.getElementById("auditCodeBtn")?.addEventListener("click",()=>{
+function runSingleCodeAudit(){
   const code=normalizeCode(document.getElementById("auditCodeInput")?.value||"");
   if(!code)return toast("Escribe un código para verificar");
-  const r=auditOneProduct(code),el=document.getElementById("auditSummary");
-  if(el){el.className="source-status "+(r.ok?"ok":"warn");el.innerHTML=r.html;}
+
+  const r=auditOneProduct(code);
+  const el=document.getElementById("auditSummary");
+
+  if(el){
+    el.className="source-status "+(r.ok?"ok":"warn");
+    el.innerHTML=r.html;
+  }
+
+  renderAuditDetail(r);
+}
+
+document.getElementById("auditCodeBtn")?.addEventListener("click",runSingleCodeAudit);
+document.getElementById("auditCodeInput")?.addEventListener("keydown",e=>{
+  if(e.key==="Enter")runSingleCodeAudit();
 });
 
 let replaceCodeResolver=null;
