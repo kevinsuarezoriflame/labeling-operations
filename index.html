@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v82 · Firebase fix</title>
+  <title>Labeling Operations v86 · Browser Print estable</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -164,6 +164,25 @@
     .pill{
       padding:9px 12px;border:1px solid var(--line);background:#fff;border-radius:10px;
       color:var(--muted);font-size:13px
+    }
+    .firebase-top-status{
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .firebase-top-status.syncing{
+      color:#8a5a00;
+      border-color:#f1cf83;
+      background:#fffaf0;
+    }
+    .firebase-top-status.connected{
+      color:#087a3c;
+      border-color:#a9dec2;
+      background:#f0fbf5;
+    }
+    .firebase-top-status.offline{
+      color:#b42318;
+      border-color:#f1b7b2;
+      background:#fff5f4;
     }
 
     .content{padding:18px 20px 32px}
@@ -966,7 +985,7 @@
         <div class="page-sub" id="pageSub">Clasificación automática y cola de impresión</div>
       </div>
       <div class="top-actions">
-        <span class="pill" id="dbStatus">Local: IndexedDB + configuración · conectando Firebase...</span>
+        <span class="pill firebase-top-status syncing" id="dbStatus">● Firebase conectando...</span>
         <span class="pill">25/09/2026</span>
       </div>
     </header>
@@ -1385,7 +1404,6 @@
         <div class="config-shell">
           <div class="config-nav">
             <button class="active" data-config="masters">Documentos</button>
-            <button data-config="firebase">Firebase</button>
             <button data-config="backup">Respaldo</button>
             <button data-config="printers">Impresoras</button>
           </div>
@@ -1778,7 +1796,7 @@
             </div>
 
             <!-- Firebase -->
-            <div class="config-page" id="cfg-firebase">
+            <div class="config-page" id="cfg-firebase" style="display:none!important">
               <div class="panel">
                 <div class="panel-head">
                   <div>
@@ -1890,7 +1908,7 @@
     batch:["Centro de impresión","Clasificación automática y cola de impresión"],
     vials:["Armados","Flujo independiente para armados"],
     general:["Etiqueta General","Etiqueta final de control y caducidad"],
-    config:["Configuración","Documentos, Firebase, respaldo e impresoras"]
+    config:["Configuración","Documentos, respaldo e impresoras"]
   };
   document.querySelectorAll(".nav-btn").forEach(btn=>{
     btn.addEventListener("click",()=>{
@@ -1917,6 +1935,318 @@
    LABELING OPERATIONS - PROTOTIPO FRONTEND
    Base local ahora. Firestore después.
    ========================================================= */
+
+/* v84 · Firebase REST se define antes de inicializar la aplicación.
+   Así window.FirebaseBridge ya existe cuando arranca la lógica central. */
+(function initLabelingFirestoreREST(){
+  const PROJECT_ID="labeling-operations";
+  const API_KEY="AIzaSyDtBmae_2udmV3bLv0lgyindLArofdFZf4";
+  const DB="(default)";
+  const ROOT=`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB}/documents`;
+  const BATCH_ROOT=`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB}/documents:batchWrite`;
+  const DATA_COLLECTION="labeling_data";
+  const SYSTEM_COLLECTION="_system";
+  const BUCKETS={products:32,vials:8,generalProducts:64};
+
+  function apiUrl(url){
+    return url+(url.includes("?")?"&":"?")+"key="+encodeURIComponent(API_KEY);
+  }
+
+  async function request(url,options={},timeoutMs=15000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+
+    try{
+      const res=await fetch(apiUrl(url),{
+        ...options,
+        signal:controller.signal,
+        headers:{
+          "Content-Type":"application/json",
+          ...(options.headers||{})
+        }
+      });
+
+      let body=null;
+      const text=await res.text();
+      if(text){
+        try{body=JSON.parse(text)}catch(_){body=text}
+      }
+
+      if(!res.ok){
+        const message=
+          body?.error?.message ||
+          body?.message ||
+          `${res.status} ${res.statusText}`;
+
+        const err=new Error(message);
+        err.status=res.status;
+        err.payload=body;
+        throw err;
+      }
+
+      return body;
+    }catch(err){
+      if(err?.name==="AbortError"){
+        throw new Error("Tiempo de espera agotado al conectar con Firebase");
+      }
+      throw err;
+    }finally{
+      clearTimeout(timer);
+    }
+  }
+
+  function encodeValue(value){
+    if(value===undefined)return undefined;
+    if(value===null)return {nullValue:null};
+
+    if(typeof value==="boolean")return {booleanValue:value};
+
+    if(typeof value==="number"){
+      if(Number.isInteger(value))return {integerValue:String(value)};
+      return {doubleValue:value};
+    }
+
+    if(typeof value==="string")return {stringValue:value};
+
+    if(Array.isArray(value)){
+      return {
+        arrayValue:{
+          values:value
+            .map(encodeValue)
+            .filter(v=>v!==undefined)
+        }
+      };
+    }
+
+    if(typeof value==="object"){
+      return {mapValue:{fields:encodeFields(value)}};
+    }
+
+    return {stringValue:String(value)};
+  }
+
+  function encodeFields(obj){
+    const fields={};
+    for(const [k,v] of Object.entries(obj||{})){
+      const encoded=encodeValue(v);
+      if(encoded!==undefined)fields[k]=encoded;
+    }
+    return fields;
+  }
+
+  function decodeValue(v){
+    if(!v || typeof v!=="object")return null;
+    if("nullValue" in v)return null;
+    if("booleanValue" in v)return v.booleanValue;
+    if("integerValue" in v)return Number(v.integerValue);
+    if("doubleValue" in v)return Number(v.doubleValue);
+    if("timestampValue" in v)return v.timestampValue;
+    if("stringValue" in v)return v.stringValue;
+    if("bytesValue" in v)return v.bytesValue;
+    if("referenceValue" in v)return v.referenceValue;
+    if("geoPointValue" in v)return v.geoPointValue;
+
+    if("arrayValue" in v){
+      return (v.arrayValue?.values||[]).map(decodeValue);
+    }
+
+    if("mapValue" in v){
+      return decodeFields(v.mapValue?.fields||{});
+    }
+
+    return null;
+  }
+
+  function decodeFields(fields){
+    const obj={};
+    for(const [k,v] of Object.entries(fields||{})){
+      obj[k]=decodeValue(v);
+    }
+    return obj;
+  }
+
+  function bucketIndex(code,count){
+    const s=String(code||"");
+    let h=2166136261;
+    for(let i=0;i<s.length;i++){
+      h^=s.charCodeAt(i);
+      h=Math.imul(h,16777619);
+    }
+    return (h>>>0)%count;
+  }
+
+  function bucketId(kind,index){
+    return `${kind}_${String(index).padStart(3,"0")}`;
+  }
+
+  function buildBucket(kind,obj,index){
+    const count=BUCKETS[kind];
+    const records={};
+
+    for(const [code,rec] of Object.entries(obj||{})){
+      if(bucketIndex(code,count)===index)records[code]=rec;
+    }
+
+    return records;
+  }
+
+  function documentName(collection,id){
+    return `projects/${PROJECT_ID}/databases/${DB}/documents/${collection}/${id}`;
+  }
+
+  function writeDoc(collection,id,data){
+    return {
+      update:{
+        name:documentName(collection,id),
+        fields:encodeFields(data)
+      }
+    };
+  }
+
+  async function batchWrites(writes){
+    for(let i=0;i<writes.length;i+=350){
+      const chunk=writes.slice(i,i+350);
+      await request(BATCH_ROOT,{
+        method:"POST",
+        body:JSON.stringify({writes:chunk})
+      },30000);
+    }
+  }
+
+  async function uploadKind(kind,obj){
+    const writes=[];
+    const count=BUCKETS[kind];
+
+    for(let i=0;i<count;i++){
+      writes.push(writeDoc(DATA_COLLECTION,bucketId(kind,i),{
+        kind,
+        bucket:i,
+        records:buildBucket(kind,obj,i),
+        updatedAt:new Date().toISOString()
+      }));
+    }
+
+    await batchWrites(writes);
+  }
+
+  async function uploadChangedBuckets(kind,obj,codes){
+    const count=BUCKETS[kind];
+    const indexes=[...new Set((codes||[]).map(c=>bucketIndex(c,count)))];
+    if(!indexes.length)return;
+
+    const writes=indexes.map(i=>writeDoc(DATA_COLLECTION,bucketId(kind,i),{
+      kind,
+      bucket:i,
+      records:buildBucket(kind,obj,i),
+      updatedAt:new Date().toISOString()
+    }));
+
+    await batchWrites(writes);
+  }
+
+  async function uploadSharedState(sharedState){
+    await batchWrites([
+      writeDoc(SYSTEM_COLLECTION,"app_config",{
+        ...(sharedState||{}),
+        schemaVersion:1,
+        updatedAt:new Date().toISOString()
+      })
+    ]);
+  }
+
+  async function uploadAll(payload){
+    await uploadKind("products",payload.products||{});
+    await uploadKind("vials",payload.vials||{});
+    await uploadKind("generalProducts",payload.generalProducts||{});
+    await uploadSharedState(payload.sharedState||{});
+
+    await batchWrites([
+      writeDoc(SYSTEM_COLLECTION,"manifest",{
+        schemaVersion:1,
+        project:PROJECT_ID,
+        counts:{
+          products:Object.keys(payload.products||{}).length,
+          vials:Object.keys(payload.vials||{}).length,
+          generalProducts:Object.keys(payload.generalProducts||{}).length
+        },
+        buckets:BUCKETS,
+        updatedAt:new Date().toISOString()
+      })
+    ]);
+  }
+
+  async function listCollection(collectionId){
+    let token="";
+    const docs=[];
+
+    do{
+      const params=new URLSearchParams({pageSize:"300"});
+      if(token)params.set("pageToken",token);
+
+      const data=await request(`${ROOT}/${collectionId}?${params.toString()}`,{},20000);
+      docs.push(...(data?.documents||[]));
+      token=data?.nextPageToken||"";
+    }while(token);
+
+    return docs;
+  }
+
+  async function getDocument(collection,id){
+    try{
+      return await request(`${ROOT}/${collection}/${encodeURIComponent(id)}`,{},15000);
+    }catch(err){
+      if(err?.status===404)return null;
+      throw err;
+    }
+  }
+
+  async function downloadAll(){
+    const docs=await listCollection(DATA_COLLECTION);
+
+    const products={};
+    const vials={};
+    const generalProducts={};
+
+    for(const doc of docs){
+      const data=decodeFields(doc.fields||{});
+      const target=
+        data.kind==="products" ? products :
+        data.kind==="vials" ? vials :
+        data.kind==="generalProducts" ? generalProducts :
+        null;
+
+      if(target && data.records && typeof data.records==="object"){
+        Object.assign(target,data.records);
+      }
+    }
+
+    const cfgDoc=await getDocument(SYSTEM_COLLECTION,"app_config");
+    const sharedState=cfgDoc ? decodeFields(cfgDoc.fields||{}) : null;
+
+    if(sharedState){
+      delete sharedState.updatedAt;
+      delete sharedState.schemaVersion;
+    }
+
+    return {products,vials,generalProducts,sharedState};
+  }
+
+  async function testConnection(){
+    // Una lectura simple comprueba red + proyecto + reglas.
+    await listCollection(DATA_COLLECTION);
+    return true;
+  }
+
+  window.FirebaseBridge={
+    ready:true,
+    mode:"rest",
+    uploadAll,
+    downloadAll,
+    uploadSharedState,
+    uploadChangedBuckets,
+    testConnection
+  };
+})();
 
 const DEFAULT_DB = {
   settings:{
@@ -2058,6 +2388,19 @@ const DEFAULT_DB = {
     }
   }
 };
+
+/* v86 · Estado Firebase temprano.
+   Evita errores TDZ si saveDB() corre durante migraciones o al guardar impresoras. */
+let firebaseSyncTimer=null;
+let firebaseGeneralTimer=null;
+let firebasePendingGeneralCodes=new Set();
+let firebaseHashes={products:new Map(),vials:new Map()};
+let firebaseStartupHydrating=false;
+let firebaseStartupHydrated=false;
+let firebaseBootstrapInProgress=true;
+let firebaseStartupWatchdog=0;
+let firebaseLastError="";
+window.__firebaseApplyingRemote=false;
 
 let db = loadDB();
 // v13: separar "clasificación que venía del Excel" de "clasificación manual".
@@ -3744,26 +4087,58 @@ document.getElementById("groupResetTemplate")?.addEventListener("click",()=>{
    ========================================================= */
 let bpDevices=[];
 
+function bpBaseUrls(){
+  return location.protocol==="https:"
+    ? ["https://localhost:9101/","https://127.0.0.1:9101/"]
+    : ["http://localhost:9100/","http://127.0.0.1:9100/"];
+}
 function bpBaseUrl(){
-  return location.protocol==="https:" ? "https://localhost:9101/" : "http://127.0.0.1:9100/";
+  return bpBaseUrls()[0];
 }
 function bpCanRun(){
   return location.protocol==="http:" || location.protocol==="https:";
 }
-function bpRequest(method,path,payload){
-  return new Promise((resolve,reject)=>{
-    const xhr=new XMLHttpRequest();
-    xhr.open(method,bpBaseUrl()+path,true);
-    xhr.onreadystatechange=()=>{
-      if(xhr.readyState!==XMLHttpRequest.DONE)return;
-      if(xhr.status===200)resolve(xhr.responseText);
-      else reject(new Error(xhr.responseText||`Browser Print respondió ${xhr.status}`));
-    };
-    xhr.onerror=()=>reject(new Error("No se pudo comunicar con Zebra Browser Print"));
-    xhr.timeout=6000;
-    xhr.ontimeout=()=>reject(new Error("Tiempo de espera agotado al consultar Browser Print"));
-    xhr.send(payload===undefined?null:JSON.stringify(payload));
-  });
+async function bpRequest(method,path,payload){
+  const bases=bpBaseUrls();
+  let lastError=null;
+
+  for(const base of bases){
+    try{
+      const response=await new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();
+        xhr.open(method,base+path,true);
+        xhr.timeout=5000;
+
+        xhr.onreadystatechange=()=>{
+          if(xhr.readyState!==XMLHttpRequest.DONE)return;
+          if(xhr.status===200){
+            resolve(xhr.responseText);
+          }else{
+            reject(new Error(xhr.responseText||`Browser Print respondió ${xhr.status} en ${base}`));
+          }
+        };
+
+        xhr.onerror=()=>reject(new Error(`No se pudo comunicar con Browser Print en ${base}`));
+        xhr.ontimeout=()=>reject(new Error(`Tiempo de espera agotado en ${base}`));
+
+        try{
+          if(payload!==undefined){
+            xhr.setRequestHeader("Content-Type","application/json;charset=UTF-8");
+          }
+        }catch(_){}
+
+        xhr.send(payload===undefined?null:JSON.stringify(payload));
+      });
+
+      window.__browserPrintBase=base;
+      return response;
+    }catch(err){
+      lastError=err;
+      console.warn("Browser Print intento fallido:",base,err);
+    }
+  }
+
+  throw lastError||new Error("No se pudo comunicar con Zebra Browser Print");
 }
 function bpDevicePayload(d){
   return {
@@ -3859,13 +4234,15 @@ async function detectZebraPrinters(showToast=true){
   try{
     bpDevices=await bpGetLocalPrinters();
     populatePrinterSelects();
+    const endpoint=window.__browserPrintBase||bpBaseUrl();
     setBpStatus(`${bpDevices.length} Zebra(s) detectada(s)`,"ok");
-    if(showToast)toast(`${bpDevices.length} impresora(s) detectada(s)`);
+    if(showToast)toast(`${bpDevices.length} impresora(s) detectada(s) · ${endpoint.replace(/\/$/,"")}`);
     return bpDevices;
   }catch(e){
     console.error(e);
+    const detail=String(e?.message||e||"").replace(/^Error:\s*/,"");
     setBpStatus("Browser Print no responde","error");
-    if(showToast)toast("No se pudo conectar con Browser Print");
+    if(showToast)toast(`No se pudo conectar con Browser Print${detail?": "+detail:""}`);
     return [];
   }
 }
@@ -7666,15 +8043,6 @@ const FIREBASE_WEB_CONFIG={
 
 db.settings.firebase={...FIREBASE_WEB_CONFIG};
 
-let firebaseSyncTimer=null;
-let firebaseGeneralTimer=null;
-let firebasePendingGeneralCodes=new Set();
-let firebaseHashes={products:new Map(),vials:new Map()};
-let firebaseStartupHydrating=false;
-let firebaseStartupHydrated=false;
-let firebaseBootstrapInProgress=true;
-window.__firebaseApplyingRemote=false;
-
 function fbAutoEnabled(){
   return localStorage.getItem("labelingFirebaseAutoSync")==="1";
 }
@@ -7682,6 +8050,17 @@ function setFbAutoEnabled(v){
   localStorage.setItem("labelingFirebaseAutoSync",v?"1":"0");
   const el=document.getElementById("fbAutoSync");
   if(el)el.checked=!!v;
+}
+function setFirebaseTopStatus(state,text){
+  const top=document.getElementById("dbStatus");
+  if(!top)return;
+  top.className="pill firebase-top-status "+state;
+  top.textContent=text;
+  top.title = state==="offline"
+    ? (firebaseLastError ? `Firebase: ${firebaseLastError}\nClic para reintentar` : "Clic para reintentar Firebase")
+    : state==="connected"
+      ? "Firebase conectado · clic para resincronizar"
+      : "Sincronizando Firebase...";
 }
 function fbSetStatus(text,ok=false){
   const el=document.getElementById("fbSyncStatus");
@@ -7806,7 +8185,7 @@ async function firebaseUploadAllLocal(){
   setFbAutoEnabled(true);
   firebaseStartupHydrated=true;
   firebaseBootstrapInProgress=false;
-  dbStatus.textContent=`Firebase sincronizado · ${FIREBASE_WEB_CONFIG.projectId}`;
+  setFirebaseTopStatus("connected","● Firebase conectado");
   fbSetStatus(`Carga inicial completada · ${Object.keys(payload.products).length} productos · ${Object.keys(payload.generalProducts).length} descripciones`,true);
 }
 async function firebaseDownloadAll(){
@@ -7839,100 +8218,168 @@ async function firebaseDownloadAll(){
   setFbAutoEnabled(true);
   firebaseStartupHydrated=true;
   firebaseBootstrapInProgress=false;
-  dbStatus.textContent=`Firebase sincronizado · ${FIREBASE_WEB_CONFIG.projectId}`;
+  setFirebaseTopStatus("connected","● Firebase conectado");
   fbSetStatus(`Datos descargados de Firebase · ${Object.keys(db.products).length} productos`,true);
 }
-async function firebaseStartupHydrate(){
-  if(firebaseStartupHydrating || firebaseStartupHydrated || !window.FirebaseBridge?.ready)return;
+async function firebaseStartupHydrate(force=false){
+  if(firebaseStartupHydrating)return;
+  if(firebaseStartupHydrated && !force)return;
+  if(!window.FirebaseBridge?.ready){
+    firebaseLastError="FirebaseBridge no está disponible";
+    firebaseBootstrapInProgress=false;
+    setFirebaseTopStatus("offline","● Firebase sin conexión");
+    return;
+  }
 
   firebaseStartupHydrating=true;
   firebaseBootstrapInProgress=true;
+  if(force)firebaseStartupHydrated=false;
+  firebaseLastError="";
 
-  dbStatus.textContent=`Firebase · cargando base central...`;
-  fbSetStatus("Cargando automáticamente la información central desde Firebase...",false);
+  clearTimeout(firebaseStartupWatchdog);
+  firebaseStartupWatchdog=setTimeout(()=>{
+    if(firebaseStartupHydrating){
+      firebaseLastError="La conexión está tardando demasiado";
+      setFirebaseTopStatus("offline","● Firebase sin conexión");
+    }
+  },12000);
+
+  setFirebaseTopStatus("syncing","● Firebase sincronizando...");
+  fbSetStatus("Consultando la base central de Firebase...",false);
 
   try{
     const cloud=await window.FirebaseBridge.downloadAll();
-    const productCount=Object.keys(cloud?.products||{}).length;
-    const vialCount=Object.keys(cloud?.vials||{}).length;
-    const generalCount=Object.keys(cloud?.generalProducts||{}).length;
-    const hasCloudData=productCount>0 || vialCount>0 || generalCount>0;
 
-    if(!hasCloudData){
-      // Nunca reemplazamos una copia local por una nube vacía.
+    const cloudProducts=Object.keys(cloud?.products||{}).length;
+    const cloudVials=Object.keys(cloud?.vials||{}).length;
+    const cloudGeneral=Object.keys(cloud?.generalProducts||{}).length;
+    const hasCloudData=cloudProducts>0 || cloudVials>0 || cloudGeneral>0;
+
+    if(hasCloudData){
+      // FIREBASE ES LA FUENTE CENTRAL.
+      window.__firebaseApplyingRemote=true;
+      try{
+        db.products=cloud.products||{};
+        db.vials=cloud.vials||{};
+        db.generalProducts=cloud.generalProducts||{};
+        firebaseApplySharedState(cloud.sharedState);
+
+        await idbReplaceGeneralProducts(Object.values(db.generalProducts));
+        repairAllProducts();
+        saveDB();
+        seedFirebaseHashes();
+      }finally{
+        window.__firebaseApplyingRemote=false;
+      }
+
+      restoreImportStatuses?.();
+      renderMasterTable?.();
+      renderArmadosTable?.();
+      renderGeneralProductsTable?.();
+      updateMasterCounts?.();
+      renderResults?.();
+
+      setFbAutoEnabled(true);
       firebaseStartupHydrated=true;
       firebaseBootstrapInProgress=false;
-      seedFirebaseHashes();
-      dbStatus.textContent=`Firebase conectado · sin base central cargada`;
-      fbSetStatus("Firebase está conectado, pero todavía no contiene una base central. Se conserva la información local.",false);
+
+      firebaseLastError="";
+      setFirebaseTopStatus("connected","● Firebase conectado");
+      fbSetStatus(
+        `Base central cargada · ${cloudProducts} productos · ${cloudVials} armados · ${cloudGeneral} descripciones`,
+        true
+      );
+      toast("Firebase conectado");
       return;
     }
 
-    window.__firebaseApplyingRemote=true;
+    // Firebase respondió correctamente pero todavía está vacío.
+    // Antes de hacer una migración, leemos también Descripción productos desde IndexedDB.
+    let localGeneralRows=[];
     try{
-      // Firebase pasa a ser la fuente central.
-      db.products=cloud.products||{};
-      db.vials=cloud.vials||{};
-      db.generalProducts=cloud.generalProducts||{};
-      firebaseApplySharedState(cloud.sharedState);
-
-      // Copia local para velocidad y contingencia.
-      await idbReplaceGeneralProducts(Object.values(db.generalProducts));
-      repairAllProducts();
-      saveDB();
-      seedFirebaseHashes();
-    }finally{
-      window.__firebaseApplyingRemote=false;
+      localGeneralRows=await idbGetAllGeneralProducts();
+      if(localGeneralRows.length){
+        db.generalProducts=db.generalProducts||{};
+        for(const rec of localGeneralRows){
+          if(rec?.code)db.generalProducts[rec.code]=rec;
+        }
+      }
+    }catch(err){
+      console.warn("No se pudo leer IndexedDB antes de migrar",err);
     }
 
-    // Refrescar toda la interfaz que depende de las bases.
-    restoreImportStatuses?.();
-    renderMasterTable?.();
-    renderArmadosTable?.();
-    renderGeneralProductsTable?.();
-    updateMasterCounts?.();
-    renderResults?.();
+    const localProducts=Object.keys(db.products||{}).length;
+    const localVials=Object.keys(db.vials||{}).length;
+    const localGeneral=Object.keys(db.generalProducts||{}).length;
+    const hasLocalData=localProducts>0 || localVials>0 || localGeneral>0;
 
-    // Tras una descarga correcta, los cambios futuros sí pueden subir.
-    setFbAutoEnabled(true);
-    firebaseStartupHydrated=true;
-    firebaseBootstrapInProgress=false;
+    if(hasLocalData){
+      // Migración inicial segura: sólo ocurre porque comprobamos que Firebase está vacío.
+      setFirebaseTopStatus("syncing","● Firebase migrando datos...");
+      fbSetStatus(
+        `Firebase está vacío. Subiendo automáticamente la base local (${localProducts} productos · ${localVials} armados · ${localGeneral} descripciones)...`,
+        false
+      );
 
-    dbStatus.textContent=`Firebase sincronizado · ${FIREBASE_WEB_CONFIG.projectId}`;
-    fbSetStatus(
-      `Base central cargada automáticamente · ${productCount} productos · ${vialCount} armados · ${generalCount} descripciones`,
-      true
-    );
-  }catch(err){
-    console.error("Firebase startup hydrate",err);
+      const payload={
+        products:db.products||{},
+        vials:db.vials||{},
+        generalProducts:db.generalProducts||{},
+        sharedState:firebaseSharedState()
+      };
 
-    // Si falla Internet, permisos o Firebase, NO borramos lo local.
+      await window.FirebaseBridge.uploadAll(payload);
+      seedFirebaseHashes();
+      setFbAutoEnabled(true);
+      firebaseStartupHydrated=true;
+      firebaseBootstrapInProgress=false;
+
+      firebaseLastError="";
+      setFirebaseTopStatus("connected","● Firebase conectado");
+      fbSetStatus(
+        `Migración inicial completada · ${localProducts} productos · ${localVials} armados · ${localGeneral} descripciones`,
+        true
+      );
+      toast("Base local subida a Firebase");
+      return;
+    }
+
+    // Firebase y este navegador están vacíos.
     firebaseStartupHydrated=true;
     firebaseBootstrapInProgress=false;
     seedFirebaseHashes();
 
-    const localProducts=Object.keys(db.products||{}).length;
-    const localGeneral=Object.keys(db.generalProducts||{}).length;
-    dbStatus.textContent=`Modo local · Firebase no disponible`;
-    fbSetStatus(
-      `No se pudo cargar Firebase. Se mantiene la copia local (${localProducts} productos · ${localGeneral} descripciones).`,
-      false
-    );
+    setFirebaseTopStatus("connected","● Firebase conectado · sin datos");
+    fbSetStatus("Firebase conectado. La base central todavía no contiene registros.",true);
+  }catch(err){
+    console.error("Firebase startup hydrate",err);
+
+    firebaseLastError=String(err?.message||err||"Error desconocido");
+    firebaseStartupHydrated=true;
+    firebaseBootstrapInProgress=false;
+    seedFirebaseHashes();
+
+    setFirebaseTopStatus("offline","● Firebase sin conexión");
+    fbSetStatus("No se pudo sincronizar Firebase: "+firebaseLastError,false);
   }finally{
+    clearTimeout(firebaseStartupWatchdog);
     firebaseStartupHydrating=false;
   }
 }
 
+let firebaseReadyUiStarted=false;
 function firebaseReadyUI(){
+  if(firebaseReadyUiStarted)return;
+  firebaseReadyUiStarted=true;
+
   const auto=document.getElementById("fbAutoSync");
   if(auto)auto.checked=fbAutoEnabled();
 
   seedFirebaseHashes();
-  dbStatus.textContent=`Firebase conectado · sincronizando...`;
-  fbSetStatus("Firebase listo. Cargando base central automáticamente...",false);
+  setFirebaseTopStatus("syncing","● Firebase sincronizando...");
+  fbSetStatus("Firebase disponible. Cargando la base central automáticamente...",false);
 
-  // No requiere entrar a Configuración ni pulsar Descargar.
-  setTimeout(()=>firebaseStartupHydrate(),60);
+  setTimeout(()=>firebaseStartupHydrate(false),30);
 }
 
 document.getElementById("fbAutoSync")?.addEventListener("change",e=>{
@@ -7945,7 +8392,7 @@ document.getElementById("fbTestConnection")?.addEventListener("click",async()=>{
   fbSetStatus("Probando conexión con Cloud Firestore...",false);
   try{
     await window.FirebaseBridge.testConnection();
-    dbStatus.textContent=`Firebase conectado · ${FIREBASE_WEB_CONFIG.projectId}`;
+    setFirebaseTopStatus("connected","● Firebase conectado");
     fbSetStatus("Cloud Firestore conectado correctamente.",true);
     toast("Firebase conectado");
   }catch(err){
@@ -7981,14 +8428,22 @@ document.getElementById("fbDownloadCloud")?.addEventListener("click",async()=>{
   }
 });
 
-window.addEventListener("labeling-firebase-ready",firebaseReadyUI);
-window.addEventListener("labeling-firebase-error",e=>{
+// v84: arranque directo. FirebaseBridge ya fue definido al inicio del script.
+if(window.FirebaseBridge?.ready){
+  firebaseReadyUI();
+}else{
+  firebaseLastError="No se pudo crear FirebaseBridge";
   firebaseBootstrapInProgress=false;
-  const msg=e?.detail?.message||"Firebase no disponible";
-  dbStatus.textContent="Modo local · Firebase no disponible";
-  fbSetStatus(msg,false);
+  setFirebaseTopStatus("offline","● Firebase sin conexión");
+}
+
+// El indicador superior funciona también como botón de reintento.
+document.getElementById("dbStatus")?.addEventListener("click",()=>{
+  if(firebaseStartupHydrating)return;
+  firebaseReadyUiStarted=true;
+  firebaseStartupHydrated=false;
+  firebaseStartupHydrate(true);
 });
-if(window.FirebaseBridge?.ready)firebaseReadyUI();
 
 /* ---------- Backup ---------- */
 document.getElementById("exportJson").addEventListener("click",()=>{
@@ -8005,7 +8460,7 @@ const titles={
   batch:["Centro de impresión","Clasificación automática y cola de impresión"],
   vials:["Armados","Flujo independiente para armados"],
   general:["Etiqueta General","Etiqueta final de control y caducidad"],
-  config:["Configuración","Documentos, Firebase, respaldo e impresoras"]
+  config:["Configuración","Documentos, respaldo e impresoras"]
 };
 document.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.addEventListener("click",()=>{
@@ -8049,208 +8504,9 @@ runDataAudit(false);
 </script>
 
 
-<script
-  src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"
-  onerror="window.__labelingFirebaseSdkError='No se pudo cargar firebase-app-compat.js';">
-</script>
-<script
-  src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"
-  onerror="window.__labelingFirebaseSdkError='No se pudo cargar firebase-firestore-compat.js';">
-</script>
-<script>
-(function initLabelingFirebaseCompat(){
-  const firebaseConfig={
-    apiKey:"AIzaSyDtBmae_2udmV3bLv0lgyindLArofdFZf4",
-    authDomain:"labeling-operations.firebaseapp.com",
-    projectId:"labeling-operations",
-    storageBucket:"labeling-operations.firebasestorage.app",
-    messagingSenderId:"1037633076220",
-    appId:"1:1037633076220:web:8ae41c74be93d5eb1b1079"
-  };
 
-  function fail(message){
-    console.error("Firebase SDK:",message);
-    const status=document.getElementById("fbSyncStatus");
-    const badge=document.getElementById("fbConnectionBadge");
-    const top=document.getElementById("dbStatus");
-    if(status){
-      status.className="source-status warn";
-      status.textContent=message;
-    }
-    if(badge)badge.textContent="Firebase no disponible";
-    if(top)top.textContent="Modo local · Firebase no disponible";
-    window.dispatchEvent(new CustomEvent("labeling-firebase-error",{detail:{message}}));
-  }
 
-  try{
-    if(window.__labelingFirebaseSdkError){
-      fail(window.__labelingFirebaseSdkError);
-      return;
-    }
 
-    if(!window.firebase){
-      fail("No se pudo inicializar el SDK de Firebase. Revisa Internet o bloqueo de www.gstatic.com.");
-      return;
-    }
-
-    if(!firebase.apps.length){
-      firebase.initializeApp(firebaseConfig);
-    }
-
-    const firestore=firebase.firestore();
-    const DATA_COLLECTION="labeling_data";
-    const SYSTEM_COLLECTION="_system";
-    const BUCKETS={products:32,vials:8,generalProducts:64};
-
-    function serverTimestamp(){
-      return firebase.firestore.FieldValue.serverTimestamp();
-    }
-
-    function bucketIndex(code,count){
-      const s=String(code||"");
-      let h=2166136261;
-      for(let i=0;i<s.length;i++){
-        h^=s.charCodeAt(i);
-        h=Math.imul(h,16777619);
-      }
-      return (h>>>0)%count;
-    }
-
-    function bucketId(kind,index){
-      return `${kind}_${String(index).padStart(3,"0")}`;
-    }
-
-    function buildBucket(kind,obj,index){
-      const count=BUCKETS[kind];
-      const records={};
-      for(const [code,rec] of Object.entries(obj||{})){
-        if(bucketIndex(code,count)===index)records[code]=rec;
-      }
-      return records;
-    }
-
-    async function writeDocs(entries){
-      for(let i=0;i<entries.length;i+=400){
-        const batch=firestore.batch();
-        for(const entry of entries.slice(i,i+400)){
-          batch.set(entry.ref,entry.data);
-        }
-        await batch.commit();
-      }
-    }
-
-    async function uploadKind(kind,obj){
-      const count=BUCKETS[kind];
-      const entries=[];
-      for(let i=0;i<count;i++){
-        entries.push({
-          ref:firestore.collection(DATA_COLLECTION).doc(bucketId(kind,i)),
-          data:{
-            kind,
-            bucket:i,
-            records:buildBucket(kind,obj,i),
-            updatedAt:serverTimestamp()
-          }
-        });
-      }
-      await writeDocs(entries);
-    }
-
-    async function uploadChangedBuckets(kind,obj,codes){
-      const count=BUCKETS[kind];
-      const buckets=[...new Set((codes||[]).map(c=>bucketIndex(c,count)))];
-      const entries=buckets.map(i=>({
-        ref:firestore.collection(DATA_COLLECTION).doc(bucketId(kind,i)),
-        data:{
-          kind,
-          bucket:i,
-          records:buildBucket(kind,obj,i),
-          updatedAt:serverTimestamp()
-        }
-      }));
-      if(entries.length)await writeDocs(entries);
-    }
-
-    async function uploadSharedState(sharedState){
-      await firestore.collection(SYSTEM_COLLECTION).doc("app_config").set({
-        ...sharedState,
-        schemaVersion:1,
-        updatedAt:serverTimestamp()
-      });
-    }
-
-    async function uploadAll(payload){
-      await uploadKind("products",payload.products||{});
-      await uploadKind("vials",payload.vials||{});
-      await uploadKind("generalProducts",payload.generalProducts||{});
-      await uploadSharedState(payload.sharedState||{});
-
-      await firestore.collection(SYSTEM_COLLECTION).doc("manifest").set({
-        schemaVersion:1,
-        project:"labeling-operations",
-        counts:{
-          products:Object.keys(payload.products||{}).length,
-          vials:Object.keys(payload.vials||{}).length,
-          generalProducts:Object.keys(payload.generalProducts||{}).length
-        },
-        buckets:BUCKETS,
-        updatedAt:serverTimestamp()
-      });
-    }
-
-    async function downloadAll(){
-      const snap=await firestore.collection(DATA_COLLECTION).get();
-      const products={},vials={},generalProducts={};
-
-      snap.forEach(d=>{
-        const data=d.data()||{};
-        const target=
-          data.kind==="products" ? products :
-          data.kind==="vials" ? vials :
-          data.kind==="generalProducts" ? generalProducts :
-          null;
-
-        if(target)Object.assign(target,data.records||{});
-      });
-
-      const cfgSnap=await firestore.collection(SYSTEM_COLLECTION).doc("app_config").get();
-      const sharedState=cfgSnap.exists ? cfgSnap.data() : null;
-
-      if(sharedState){
-        delete sharedState.updatedAt;
-        delete sharedState.schemaVersion;
-      }
-
-      return {products,vials,generalProducts,sharedState};
-    }
-
-    async function testConnection(){
-      const ref=firestore.collection(SYSTEM_COLLECTION).doc("connection_test");
-      await ref.set({
-        project:"labeling-operations",
-        testedAt:serverTimestamp(),
-        userAgent:navigator.userAgent.slice(0,180)
-      },{merge:true});
-      await ref.get();
-      return true;
-    }
-
-    window.FirebaseBridge={
-      ready:true,
-      firestore,
-      uploadAll,
-      downloadAll,
-      uploadSharedState,
-      uploadChangedBuckets,
-      testConnection
-    };
-
-    window.dispatchEvent(new CustomEvent("labeling-firebase-ready"));
-  }catch(err){
-    fail("Firebase no pudo iniciar: "+(err?.message||err));
-  }
-})();
-</script>
 
 
 </body>
