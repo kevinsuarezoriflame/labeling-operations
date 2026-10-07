@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v88 · Solo importador</title>
+  <title>Labeling Operations v89 · Cancelar impresión</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -1182,6 +1182,7 @@
                     <input class="field" type="number" min="1" id="printQty" value="1">
                   </div>
                   <button class="btn btn-success" id="printGroup">🖨 Imprimir</button>
+<button class="btn btn-danger emergency-stop" data-printer-kind="bulk" title="Cancela todo lo pendiente en la ZT410">⛔ Detener ZT410</button>
                 </div>
               </div>
             </div>
@@ -1306,6 +1307,7 @@
                   <input class="field" type="number" id="vialQty" value="1" min="1">
                 </div>
                 <button class="btn btn-success w100 mt12" id="printVialBtn">🖨 Imprimir Código / Armado</button>
+<button class="btn btn-danger w100 mt8 emergency-stop" data-printer-kind="bulk" title="Cancela todo lo pendiente en la ZT410">⛔ Detener ZT410</button>
               </div>
             </div>
           </div>
@@ -1341,6 +1343,7 @@
                 <div class="general-result-rule"><strong>Resultado:</strong> siempre 14 dígitos = <strong>Código (6)</strong> + <strong>Unidades/caja (4)</strong> + <strong>Caducidad (4)</strong>. Ej.: 46796 + 72 + 129 → <strong>04769600720129</strong>.</div>
                 <div class="general-actions-clean">
                   <button class="btn btn-success" id="printGeneralBtn">🖨 Imprimir General</button>
+<button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela todo lo pendiente en la ZT231">⛔ Detener ZT231</button>
                   <span class="push-right"></span>
                   <button class="btn btn-outline btn-sm" id="toggleGeneralEditor">✎ Editar</button>
                   <button class="btn btn-light btn-sm" id="resetGeneralLayout">Restaurar</button>
@@ -1383,6 +1386,7 @@
                     <button class="btn btn-light btn-sm" id="clearGeneralBulk">Limpiar</button>
                     <span class="push-right"></span>
                     <button class="btn btn-success" id="printGeneralBulk">🖨 Imprimir lote General</button>
+<button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela todo lo pendiente en la ZT231">⛔ Detener ZT231</button>
                   </div>
                   <div class="general-bulk-paste-note">Puedes escribir directamente o pegar varias filas desde Excel. Orden: <strong>Código · Descripción · Unid./caja · Caducidad · Cantidad · Fecha</strong>. El <strong>Resultado</strong> se calcula automáticamente.</div>
                   <div class="table-wrap" style="max-height:340px">
@@ -1752,12 +1756,14 @@
                       <select class="field" id="bulkPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Normal, Larga, NSO Triple/Múltiple, Ancha y Códigos/Armados.</div>
                       <button class="btn btn-outline btn-sm mt10" id="testBulkPrinter">Imprimir 1 prueba ZT410</button>
+<button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="bulk">⛔ Cancelar todo ZT410</button>
                     </div>
                     <div>
                       <label>General · ZT231</label>
                       <select class="field" id="generalPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Etiqueta General / Final.</div>
                       <button class="btn btn-outline btn-sm mt10" id="testGeneralPrinter">Imprimir 1 prueba ZT231</button>
+<button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="general">⛔ Cancelar todo ZT231</button>
                     </div>
                   </div>
 
@@ -4163,6 +4169,28 @@ async function bpSend(device,data){
   if(!device)throw new Error("No hay impresora asignada");
   return bpRequest("POST","write",{device:bpDevicePayload(device),data});
 }
+
+async function emergencyStopPrinter(kind){
+  try{
+    if(!bpDevices.length) await detectZebraPrinters(false);
+
+    let device=assignedPrinter(kind);
+    if(!device){
+      const model=kind==="general" ? /ZT231/i : /ZT410/i;
+      device=bpDevices.find(d=>model.test(String(d.name||"")))||null;
+    }
+    if(!device) throw new Error(kind==="general" ? "No se encontró la ZT231" : "No se encontró la ZT410");
+
+    await bpSend(device,"~JA");
+    toast(`⛔ Impresión cancelada en ${device.name}. La etiqueta que ya estaba en curso puede terminar.`);
+    return true;
+  }catch(e){
+    console.error(e);
+    toast(`No se pudo cancelar la impresión: ${e.message||e}`);
+    return false;
+  }
+}
+
 async function bpRead(device){
   return bpRequest("POST","read",{device:bpDevicePayload(device)});
 }
@@ -5466,40 +5494,22 @@ async function buildWysiwygSingleZPL(product,type,qty=1){
   return `^XA^CI28^FWN^PW${g.width}^LL${g.height}^LH0,0^LS0${graphicZPL(g,0,0)}${nativeBarcodeZPL(product,type,0,0)}^PQ${n}^XZ`;
 }
 async function buildFourUpGroupZPL(items,type){
-  const separatorBlank={__separatorBlank:true};
-  const separatorQty=2;
-
   if(type==="larga"||type==="ancha"){
     const cfg=type==="larga"
       ?{cols:3,pw:825,ll:104,builder:buildLongEditorNativePage}
       :{cols:3,pw:811,ll:160,builder:buildWideEditorNativePage};
-
-    let z="",row=[],total=0,blankCount=0;
+    let z="",row=[],total=0;
     const flush=()=>{if(!row.length)return;z+=cfg.builder(row);row=[];};
-
-    items.forEach((item,itemIndex)=>{
+    for(const item of items){
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
-
       for(let i=0;i<qty;i++){
-        row.push(item.product);
-        total++;
-        if(row.length===cfg.cols)flush();
+        row.push(item.product);total++;
+        if(row.length===3)flush();
       }
-
-      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
-      if(itemIndex<items.length-1){
-        for(let s=0;s<separatorQty;s++){
-          row.push(separatorBlank);
-          blankCount++;
-          if(row.length===cfg.cols)flush();
-        }
-      }
-    });
-
+    }
     flush();
-    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:3};
+    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:3};
   }
-
   const cfg={
     normal:{cols:4,pw:470,ll:208,builder:buildNormalExactZDesignerPage},
     triple:{cols:4,pw:470,ll:208,builder:buildTripleExactZDesignerPage},
@@ -5507,72 +5517,26 @@ async function buildFourUpGroupZPL(items,type){
   }[type];
 
   if(cfg){
-    let z="",row=[],total=0,blankCount=0;
+    let z="",row=[],total=0;
     const flush=()=>{if(row.length){z+=cfg.builder(row);row=[];}};
-
-    items.forEach((item,itemIndex)=>{
+    for(const item of items){
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
-
       for(let i=0;i<qty;i++){
-        row.push(item.product);
-        total++;
+        row.push(item.product);total++;
         if(row.length===cfg.cols)flush();
       }
-
-      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
-      if(itemIndex<items.length-1){
-        for(let s=0;s<separatorQty;s++){
-          row.push(separatorBlank);
-          blankCount++;
-          if(row.length===cfg.cols)flush();
-        }
-      }
-    });
-
+    }
     flush();
-    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
+    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
   }
 
   // Fallback heredado para cualquier formato futuro.
   const sheet=bulkSheetConfig(),media=zebraMedia(type),labelW=mmToDots(media.w),labelH=mmToDots(media.h);
   const pageW=sheet.left+sheet.columns*labelW+Math.max(0,sheet.columns-1)*sheet.gapX,pageH=labelH+sheet.gapY;
-  let z="",row=[],total=0,blankCount=0;
-
-  const flushRow=async()=>{
-    if(!row.length)return;
-    z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;
-    for(let col=0;col<row.length;col++){
-      const product=row[col];
-      if(product?.__separatorBlank)continue;
-      const x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);
-      z+=graphicZPL(graphic,x,0);
-      z+=nativeBarcodeZPL(product,type,x,0);
-    }
-    z+="^PQ1^XZ";
-    row=[];
-  };
-
-  for(let itemIndex=0;itemIndex<items.length;itemIndex++){
-    const item=items[itemIndex];
-    const qty=Math.max(1,parseInt(item.qty||1,10)||1);
-
-    for(let i=0;i<qty;i++){
-      row.push(item.product);
-      total++;
-      if(row.length===sheet.columns)await flushRow();
-    }
-
-    if(itemIndex<items.length-1){
-      for(let s=0;s<separatorQty;s++){
-        row.push(separatorBlank);
-        blankCount++;
-        if(row.length===sheet.columns)await flushRow();
-      }
-    }
-  }
-
-  await flushRow();
-  return {zpl:z,total,blankCount,pageW,pageH,columns:sheet.columns};
+  let z="",row=[],total=0;
+  const flushRow=async()=>{if(!row.length)return;z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;for(let col=0;col<row.length;col++){const product=row[col],x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);z+=graphicZPL(graphic,x,0);z+=nativeBarcodeZPL(product,type,x,0);}z+="^PQ1^XZ";row=[];};
+  for(const item of items){const qty=Math.max(1,parseInt(item.qty||1,10)||1);for(let i=0;i<qty;i++){row.push(item.product);total++;if(row.length===sheet.columns)await flushRow();}}
+  await flushRow();return {zpl:z,total,pageW,pageH,columns:sheet.columns};
 }
 
 function buildArmadoProduct(v){
@@ -5640,6 +5604,16 @@ async function sendZplWithCheck(kind,zpl,labelCount,description){
   toast(`Enviado a ${device.name}: ${labelCount} etiqueta(s)`);
   return true;
 }
+
+document.querySelectorAll(".emergency-stop").forEach(btn=>{
+  btn.addEventListener("click",async()=>{
+    const original=btn.textContent;
+    btn.disabled=true;
+    btn.textContent="⏹ Cancelando...";
+    try{ await emergencyStopPrinter(btn.dataset.printerKind||"bulk"); }
+    finally{ btn.disabled=false; btn.textContent=original; }
+  });
+});
 
 document.getElementById("detectZebras")?.addEventListener("click",()=>detectZebraPrinters(true));
 document.getElementById("bulkPrinterSelect")?.addEventListener("change",e=>{
