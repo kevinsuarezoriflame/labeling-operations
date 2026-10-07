@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v86 · Browser Print estable</title>
+  <title>Labeling Operations v87 · WYSIWYG impresión</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -2250,7 +2250,7 @@
 
 const DEFAULT_DB = {
   settings:{
-    importador:"IMPORTADO POR ORIFLAME DEL ECUADOR S.A.",
+    importador:"Imp por Oriflame S.A",
     generalBoxNames:["M","T","W","Ar","Mi","J","S","D","L","Sh","Y","RANSA"],
     generalTitles:{
       company:"Oriflame Cosmetics S.A.",
@@ -2403,6 +2403,18 @@ let firebaseLastError="";
 window.__firebaseApplyingRemote=false;
 
 let db = loadDB();
+
+/* v87 · Leyenda corporativa abreviada.
+   Se normaliza también en bases existentes, no solo instalaciones nuevas. */
+if(db.settings?.importerShortVersion!=="v87-imp-oriflame-sa"){
+  db.settings=db.settings||{};
+  db.settings.importador="Imp por Oriflame S.A";
+  db.settings.importerShortVersion="v87-imp-oriflame-sa";
+  try{saveDB();}catch(_){
+    try{localStorage.setItem("bulkLabelStudioDB",JSON.stringify(db));}catch(__){}
+  }
+}
+
 // v13: separar "clasificación que venía del Excel" de "clasificación manual".
 if(db.settings?.classificationDataModel!=="nr-aware-v2"){
   for(const p of Object.values(db.products||{})){
@@ -3060,9 +3072,7 @@ function bulkDisplayModel(p,type){
     content:(type==="ancha" || type==="larga") ? cleanContainsText(p?.longText||"") : "",
     nsos,
     nso:nsos.join("  "),
-    import:(type==="larga"||type==="ancha")
-      ? "IMP.ORIFLAME DEL ECUADOR S.A."
-      : (db.settings.importador||"")
+    import:(db.settings.importador||"Imp por Oriflame S.A")
   };
 }
 
@@ -5166,7 +5176,7 @@ function exactLongFits(p){
 }
 function buildNormalExactZDesignerPage(products){
   let z="^XA^MMT^PW470^LL208^LS0";
-  const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
     const b=col*120, code=String(p?.code||"").trim();
@@ -5182,7 +5192,7 @@ function buildNormalExactZDesignerPage(products){
 function buildTripleExactZDesignerPage(products){
   // 2 Nso Triple.prn: PW470 / LL208 / pitch 120 / BY2,3,36 / BCB.
   let z="^XA^MMT^PW470^LL208^LS0";
-  const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
   const nsoX=[58,71,82];
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
@@ -5234,7 +5244,7 @@ function horizontalEditorBarcode(type,key,baseHeight){
 function buildLongEditorNativePage(products){
   let z="^XA^MMT^PW825^LL104^LS0";
   const bases=[0,283,567];
-  const importer="IMP.ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
 
   products.slice(0,3).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
@@ -5274,7 +5284,7 @@ function buildWideEditorNativePage(products){
   // v71: auto-fit arriba + bloque inferior dinámico acotado + barcode expandido.
   let z="^XA^MMT^PW811^LL160^LS0";
   const bases=[0,276,551];
-  const importer="IMP.ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
 
   products.slice(0,3).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
@@ -5325,7 +5335,7 @@ function buildWideEditorNativePage(products){
 function buildLongExactZDesignerPage(products){
   // ETIQUETA #4.prn: PW825 / LL104 / 3-up / BY2,3,41 / BCN.
   let z="^XA^MMT^PW825^LL104^LS0";
-  const bases=[0,283,567], importer="IMP.ORIFLAME DEL ECUADOR S.A.";
+  const bases=[0,283,567], importer="Imp por Oriflame S.A";
   products.slice(0,3).forEach((p,col)=>{
     const b=bases[col],code=String(p?.code||"").trim(),nso=(p?.nsos||[]).filter(Boolean)[0]||"";
     const [line1,line2]=longExactLines(p);
@@ -5343,7 +5353,7 @@ function buildWideExactZDesignerPage(products){
   let z="^XA^MMT^PW811^LL160^LS0";
   const bases=[0,276,551], ys=[13,24,37,48,61,73];
   const fonts=[[8,20],[8,18],[8,13],[8,10],[8,10],[8,10]];
-  const importer="IMP.ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
   products.slice(0,3).forEach((p,col)=>{
     const b=bases[col],code=String(p?.code||"").trim(),nso=(p?.nsos||[]).filter(Boolean)[0]||"";
     const lines=wideExactLines(p).slice(0,6);
@@ -5362,7 +5372,7 @@ function exactArmadoCodeWidth(code){
 function buildArmadoExactNormalPage(products){
   // v77: Armados imprime con el mismo formato físico de NSO Triple / Múltiple.
   let z="^XA^MMT^PW470^LL208^LS0";
-  const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
+  const importer="Imp por Oriflame S.A";
   const nsoX=[58,71,82];
 
   products.slice(0,4).forEach((p,col)=>{
@@ -5444,6 +5454,30 @@ async function buildHorizontalWysiwygPage(products,type){
   }
   return z+"^PQ1^XZ";
 }
+async function buildVerticalEditorPage(products,type){
+  const cfg={normal:{pw:470,ll:208},triple:{pw:470,ll:208},armados:{pw:470,ll:208}}[type];
+  if(!cfg)throw new Error(`Formato vertical no soportado: ${type}`);
+
+  let z=`^XA^CI28^FWN^MMT^PW${cfg.pw}^LL${cfg.ll}^LH0,0^LS0`;
+  const row=(products||[]).slice(0,4);
+
+  for(let col=0;col<row.length;col++){
+    const product=row[col];
+    if(product?.__separatorBlank)continue;
+    const baseX=col*120;
+
+    // Texto/posición/tamaño/rotación salen del MISMO layout que ve el editor.
+    const graphic=await rasterizePreviewToGraphic(product,type);
+    z+=graphicZPL(graphic,baseX,0);
+
+    // El código de barras permanece ZPL nativo para máxima lectura/calidad,
+    // pero su posición/rotación se toma del layout editable.
+    z+=nativeBarcodeZPL(product,type,baseX,0);
+  }
+
+  return z+"^PQ1,0,1,Y^XZ";
+}
+
 async function buildWysiwygSingleZPL(product,type,qty=1){
   const n=Math.max(1,parseInt(qty||1,10)||1);
 
@@ -5460,8 +5494,11 @@ async function buildWysiwygSingleZPL(product,type,qty=1){
     return z;
   }
 
-  const builder={normal:buildNormalExactZDesignerPage,triple:buildTripleExactZDesignerPage,armados:buildArmadoExactNormalPage}[type];
-  if(builder){let z="";for(let i=0;i<n;i++)z+=builder([product]);return z;}
+  if(["normal","triple","armados"].includes(type)){
+    let z="";
+    for(let i=0;i<n;i++)z+=await buildVerticalEditorPage([product],type);
+    return z;
+  }
   const g=await rasterizePreviewToGraphic(product,type);
   return `^XA^CI28^FWN^PW${g.width}^LL${g.height}^LH0,0^LS0${graphicZPL(g,0,0)}${nativeBarcodeZPL(product,type,0,0)}^PQ${n}^XZ`;
 }
@@ -5501,22 +5538,27 @@ async function buildFourUpGroupZPL(items,type){
   }
 
   const cfg={
-    normal:{cols:4,pw:470,ll:208,builder:buildNormalExactZDesignerPage},
-    triple:{cols:4,pw:470,ll:208,builder:buildTripleExactZDesignerPage},
-    armados:{cols:4,pw:470,ll:208,builder:buildArmadoExactNormalPage}
+    normal:{cols:4,pw:470,ll:208},
+    triple:{cols:4,pw:470,ll:208},
+    armados:{cols:4,pw:470,ll:208}
   }[type];
 
   if(cfg){
     let z="",row=[],total=0,blankCount=0;
-    const flush=()=>{if(row.length){z+=cfg.builder(row);row=[];}};
+    const flush=async()=>{
+      if(!row.length)return;
+      z+=await buildVerticalEditorPage(row,type);
+      row=[];
+    };
 
-    items.forEach((item,itemIndex)=>{
+    for(let itemIndex=0;itemIndex<items.length;itemIndex++){
+      const item=items[itemIndex];
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
 
       for(let i=0;i<qty;i++){
         row.push(item.product);
         total++;
-        if(row.length===cfg.cols)flush();
+        if(row.length===cfg.cols)await flush();
       }
 
       // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
@@ -5524,12 +5566,12 @@ async function buildFourUpGroupZPL(items,type){
         for(let s=0;s<separatorQty;s++){
           row.push(separatorBlank);
           blankCount++;
-          if(row.length===cfg.cols)flush();
+          if(row.length===cfg.cols)await flush();
         }
       }
-    });
+    }
 
-    flush();
+    await flush();
     return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
   }
 
@@ -6959,7 +7001,7 @@ function cleanCategoryParts(values,code){
     if(looksLikeNSO(v) || looksLikeDate(v)) return false;
     const n=normHeader(v);
     if(n.includes("etiq") || n.includes("etiqueta") || n==="nso triple") return false;
-    if(n.includes("importado por oriflame")) return false;
+    if(n.includes("importado por oriflame") || n.includes("imp por oriflame")) return false;
     if(/^\d+$/.test(v)) return false;
     return true;
   });
@@ -6995,7 +7037,7 @@ function semanticRowParse(row,code){
     if(!v || normalizeCode(v)===normalizeCode(code)) return false;
     if(looksLikeNSO(v) || looksLikeDate(v)) return false;
     if(mapTypeFromText(v)) return false;
-    if(n.includes("importado por oriflame") || n.includes("imp.oriflame") || n.includes("imp. oriflame")) return false;
+    if(n.includes("importado por oriflame") || n.includes("imp por oriflame") || n.includes("imp.oriflame") || n.includes("imp. oriflame")) return false;
     if(/^\d+$/.test(v)) return false;
     if(h.includes("detalle") || h.includes("caducidad") || h==="cantidad" || h.includes("verificacion") || h.includes("verificación")) return false;
     return true;
@@ -8070,6 +8112,8 @@ function fbSetStatus(text,ok=false){
 }
 function firebaseSharedState(){
   const settings=structuredClone(db.settings||{});
+  settings.importador="Imp por Oriflame S.A";
+  settings.importerShortVersion="v87-imp-oriflame-sa";
   delete settings.printers;
   delete settings.firebase;
   return {
@@ -8091,6 +8135,8 @@ function firebaseApplySharedState(state){
   };
   if(state.templates)db.templates=state.templates;
   if(state.importMeta)db.importMeta=state.importMeta;
+  db.settings.importador="Imp por Oriflame S.A";
+  db.settings.importerShortVersion="v87-imp-oriflame-sa";
   ensureEditorSchema();
 }
 function stableHash(v){
