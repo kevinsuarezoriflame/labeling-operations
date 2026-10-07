@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v91 · Browser Print intacto + Control de impresión</title>
+  <title>Labeling Operations v92 · Browser Print Auto + Control Seguro</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -1183,9 +1183,9 @@
                     <input class="field" type="number" min="1" id="printQty" value="1">
                   </div>
                   <button class="btn btn-success" id="printGroup">🖨 Imprimir</button>
-<button class="btn btn-warning printer-pause" data-printer-kind="bulk" title="Pausa la ZT410 después de la etiqueta en curso">⏸ Pausar</button>
+                  <button class="btn btn-warning printer-pause" data-printer-kind="bulk" title="Pausa la ZT410">⏸ Pausar</button>
                   <button class="btn btn-outline printer-resume" data-printer-kind="bulk" title="Reanuda la ZT410">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" title="Cancela y limpia todo el trabajo pendiente de la ZT410">⛔ CANCELAR TRABAJO</button>
+                  <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" title="Cancela TODO el trabajo pendiente de la ZT410">⛔ CANCELAR TRABAJO</button>
                 </div>
               </div>
             </div>
@@ -1310,11 +1310,11 @@
                   <input class="field" type="number" id="vialQty" value="1" min="1">
                 </div>
                 <button class="btn btn-success w100 mt12" id="printVialBtn">🖨 Imprimir Código / Armado</button>
-<div class="mt8" style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-warning printer-pause" data-printer-kind="bulk" style="flex:1">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="bulk" style="flex:1">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" style="flex-basis:100%">⛔ CANCELAR TRABAJO</button>
-                </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <button class="btn btn-warning printer-pause" data-printer-kind="bulk" style="flex:1">⏸ Pausar</button>
+                    <button class="btn btn-outline printer-resume" data-printer-kind="bulk" style="flex:1">▶ Reanudar</button>
+                    <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" style="flex-basis:100%">⛔ CANCELAR TRABAJO</button>
+                  </div>
               </div>
             </div>
           </div>
@@ -1350,9 +1350,9 @@
                 <div class="general-result-rule"><strong>Resultado:</strong> siempre 14 dígitos = <strong>Código (6)</strong> + <strong>Unidades/caja (4)</strong> + <strong>Caducidad (4)</strong>. Ej.: 46796 + 72 + 129 → <strong>04769600720129</strong>.</div>
                 <div class="general-actions-clean">
                   <button class="btn btn-success" id="printGeneralBtn">🖨 Imprimir General</button>
-<button class="btn btn-warning printer-pause" data-printer-kind="general">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="general">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela y limpia todo el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
+                  <button class="btn btn-warning printer-pause" data-printer-kind="general" title="Pausa la ZT231">⏸ Pausar</button>
+                  <button class="btn btn-outline printer-resume" data-printer-kind="general" title="Reanuda la ZT231">▶ Reanudar</button>
+                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela TODO el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
                   <span class="push-right"></span>
                   <button class="btn btn-outline btn-sm" id="toggleGeneralEditor">✎ Editar</button>
                   <button class="btn btn-light btn-sm" id="resetGeneralLayout">Restaurar</button>
@@ -1395,9 +1395,9 @@
                     <button class="btn btn-light btn-sm" id="clearGeneralBulk">Limpiar</button>
                     <span class="push-right"></span>
                     <button class="btn btn-success" id="printGeneralBulk">🖨 Imprimir lote General</button>
-<button class="btn btn-warning printer-pause" data-printer-kind="general">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="general">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela y limpia todo el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
+                  <button class="btn btn-warning printer-pause" data-printer-kind="general" title="Pausa la ZT231">⏸ Pausar</button>
+                  <button class="btn btn-outline printer-resume" data-printer-kind="general" title="Reanuda la ZT231">▶ Reanudar</button>
+                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela TODO el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
                   </div>
                   <div class="general-bulk-paste-note">Puedes escribir directamente o pegar varias filas desde Excel. Orden: <strong>Código · Descripción · Unid./caja · Caducidad · Cantidad · Fecha</strong>. El <strong>Resultado</strong> se calcula automáticamente.</div>
                   <div class="table-wrap" style="max-height:340px">
@@ -1767,7 +1767,7 @@
                       <select class="field" id="bulkPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Normal, Larga, NSO Triple/Múltiple, Ancha y Códigos/Armados.</div>
                       <button class="btn btn-outline btn-sm mt10" id="testBulkPrinter">Imprimir 1 prueba ZT410</button>
-<button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="bulk">⏸ Pausar ZT410</button>
+                      <button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="bulk">⏸ Pausar ZT410</button>
                       <button class="btn btn-outline btn-sm mt10 printer-resume" data-printer-kind="bulk">▶ Reanudar ZT410</button>
                       <button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="bulk">⛔ Cancelar trabajo ZT410</button>
                     </div>
@@ -1776,7 +1776,7 @@
                       <select class="field" id="generalPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Etiqueta General / Final.</div>
                       <button class="btn btn-outline btn-sm mt10" id="testGeneralPrinter">Imprimir 1 prueba ZT231</button>
-<button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="general">⏸ Pausar ZT231</button>
+                      <button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="general">⏸ Pausar ZT231</button>
                       <button class="btn btn-outline btn-sm mt10 printer-resume" data-printer-kind="general">▶ Reanudar ZT231</button>
                       <button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="general">⛔ Cancelar trabajo ZT231</button>
                     </div>
@@ -4185,68 +4185,99 @@ async function bpSend(device,data){
   return bpRequest("POST","write",{device:bpDevicePayload(device),data});
 }
 
-const printerControlLock={bulk:false,general:false};
+const printerRuntime={
+  bulk:{paused:false,generation:0,sending:false},
+  general:{paused:false,generation:0,sending:false}
+};
 
-async function getControlPrinter(kind){
+function printerModelRegex(kind){
+  return kind==="general" ? /ZT231/i : /ZT410/i;
+}
+function printerExpectedName(kind){
+  return kind==="general" ? "ZT231" : "ZT410";
+}
+async function resolvePrinterAutomatic(kind){
   if(!bpDevices.length) await detectZebraPrinters(false);
+
+  // 1. Mantener la asignación local si Browser Print todavía reconoce ese UID/nombre.
   let device=assignedPrinter(kind);
+  if(device) return device;
+
+  // 2. Si cambió el UID de Browser Print, recuperar automáticamente por modelo.
+  const rx=printerModelRegex(kind);
+  device=bpDevices.find(d=>rx.test(String(d.name||"")))||null;
+
+  // 3. Fallback seguro: elegir el único equipo que no corresponda al otro modelo.
   if(!device){
-    const model=kind==="general" ? /ZT231/i : /ZT410/i;
-    device=bpDevices.find(d=>model.test(String(d.name||"")))||null;
+    const otherRx=kind==="general" ? /ZT410/i : /ZT231/i;
+    const candidates=bpDevices.filter(d=>!otherRx.test(String(d.name||"")));
+    if(candidates.length===1) device=candidates[0];
   }
-  if(!device) throw new Error(kind==="general" ? "No se encontró la ZT231" : "No se encontró la ZT410");
+
+  // 4. Si Browser Print solo devuelve una impresora, usarla sin obligar a Configuración.
+  if(!device && bpDevices.length===1) device=bpDevices[0];
+
+  if(!device){
+    throw new Error(`Zebra Browser Print no encontró la ${printerExpectedName(kind)}. Verifica que Browser Print esté abierto y que la impresora esté en línea.`);
+  }
+
+  // Repara automáticamente la asignación local para las siguientes impresiones.
+  db.settings.printers=db.settings.printers||{};
+  if(kind==="general"){
+    db.settings.printers.generalUid=device.uid||"";
+    db.settings.printers.generalName=device.name||"";
+    const sel=document.getElementById("generalPrinterSelect"); if(sel) sel.value=device.uid||"";
+  }else{
+    db.settings.printers.bulkUid=device.uid||"";
+    db.settings.printers.bulkName=device.name||"";
+    const sel=document.getElementById("bulkPrinterSelect"); if(sel) sel.value=device.uid||"";
+  }
+  saveDB();
+  updatePrinterSummary();
   return device;
 }
 
 async function pausePrinter(kind){
+  const state=printerRuntime[kind]||printerRuntime.bulk;
+  state.paused=true;
   try{
-    const device=await getControlPrinter(kind);
-    printerControlLock[kind]=true;
+    const device=await resolvePrinterAutomatic(kind);
     await bpSend(device,"~PP");
-    toast(`⏸ ${device.name} pausada. La web no enviará un trabajo nuevo hasta reanudar.`);
+    toast(`⏸ ${device.name} pausada. La web no enviará más formatos hasta Reanudar.`);
     return true;
   }catch(e){
-    console.error(e);
-    toast(`No se pudo pausar la impresora: ${e.message||e}`);
-    return false;
+    state.paused=false;
+    console.error(e); toast(e.message||String(e)); return false;
   }
 }
 
 async function resumePrinter(kind){
+  const state=printerRuntime[kind]||printerRuntime.bulk;
   try{
-    const device=await getControlPrinter(kind);
+    const device=await resolvePrinterAutomatic(kind);
     await bpSend(device,"~PS");
-    printerControlLock[kind]=false;
-    toast(`▶ ${device.name} reanudada y lista.`);
+    state.paused=false;
+    toast(`▶ ${device.name} reanudada.`);
     return true;
-  }catch(e){
-    console.error(e);
-    toast(`No se pudo reanudar la impresora: ${e.message||e}`);
-    return false;
-  }
+  }catch(e){console.error(e);toast(e.message||String(e));return false;}
 }
 
 async function emergencyStopPrinter(kind){
+  const state=printerRuntime[kind]||printerRuntime.bulk;
+  // Invalida inmediatamente cualquier bucle de envío que todavía esté activo en la web.
+  state.generation++;
+  state.paused=true;
   try{
-    const device=await getControlPrinter(kind);
-    printerControlLock[kind]=true;
-
-    // Control Zebra sin alterar Browser Print:
-    // 1) pausa, 2) limpia todo el buffer/lote, 3) repite la limpieza por seguridad,
-    // 4) queda pausada para que una data errónea no vuelva a arrancar.
-    await bpSend(device,"~PP");
-    await bpSend(device,"~JA");
-    await new Promise(r=>setTimeout(r,220));
-    await bpSend(device,"~JA");
-    await new Promise(r=>setTimeout(r,220));
+    const device=await resolvePrinterAutomatic(kind);
+    // ~JA cancela todos los formatos/lotes que la Zebra ya recibió.
+    // ~PP la deja pausada para impedir que un operador reactive accidentalmente el lote malo.
     await bpSend(device,"~JA");
     await bpSend(device,"~PP");
-
-    toast(`⛔ Trabajo cancelado y buffer limpiado en ${device.name}. Quedó PAUSADA; usa Reanudar cuando la data esté corregida.`);
+    toast(`⛔ Trabajo cancelado en ${device.name}. Cola web detenida y Zebra pausada.`);
     return true;
   }catch(e){
     console.error(e);
-    toast(`No se pudo completar la cancelación: ${e.message||e}`);
+    toast(`No se pudo cancelar la impresión: ${e.message||e}`);
     return false;
   }
 }
@@ -4349,10 +4380,7 @@ async function zebraStatus(device){
   return statuses.length?statuses.join(" · "):"Responde correctamente";
 }
 async function ensurePrinter(kind){
-  if(!bpDevices.length)await detectZebraPrinters(false);
-  const d=assignedPrinter(kind);
-  if(!d)throw new Error(kind==="general"?"Asigna la ZT231 en Configuración → Impresoras":"Asigna la ZT410 en Configuración → Impresoras");
-  return d;
+  return resolvePrinterAutomatic(kind);
 }
 const ZEBRA_PRINT_DPI=203;
 const ZEBRA_DOTS_PER_MM=ZEBRA_PRINT_DPI/25.4;
@@ -5651,28 +5679,82 @@ function buildGeneralZPL(data,qty=1){
   return z;
 }
 
-async function sendZplWithCheck(kind,zpl,labelCount,description){
-  if(printerControlLock[kind]){
-    throw new Error(`${kind==="general"?"ZT231":"ZT410"} está pausada/cancelada. Presiona Reanudar antes de enviar un trabajo nuevo.`);
+function zplFormatUnits(zpl){
+  const raw=String(zpl||"");
+  const matches=raw.match(/[\s\S]*?\^XZ/gi)||[];
+  const consumed=matches.join("").length;
+  const tail=raw.slice(consumed).trim();
+  if(tail) matches.push(tail);
+  if(!matches.length && raw.trim()) matches.push(raw);
+
+  const units=[];
+  for(const format of matches){
+    const pq=format.match(/\^PQ\s*(\d+)([^\^~]*)/i);
+    const copies=pq?Math.max(1,parseInt(pq[1]||"1",10)||1):1;
+    const one=(pq && copies>1)
+      ? format.replace(pq[0],`^PQ1${pq[2]||""}`)
+      : format;
+    units.push({zpl:one,copies});
   }
+  return units;
+}
+function waitMs(ms){return new Promise(r=>setTimeout(r,ms));}
+
+async function sendControlledZpl(kind,device,zpl){
+  const state=printerRuntime[kind]||printerRuntime.bulk;
+  const myGeneration=state.generation;
+  state.sending=true;
+  try{
+    const units=zplFormatUnits(zpl);
+    for(const unit of units){
+      for(let copy=0;copy<unit.copies;copy++){
+        if(state.generation!==myGeneration) throw new Error("__PRINT_CANCELLED__");
+        while(state.paused && state.generation===myGeneration){
+          await waitMs(120);
+        }
+        if(state.generation!==myGeneration) throw new Error("__PRINT_CANCELLED__");
+        await bpSend(device,unit.zpl);
+        // Cede el control al navegador para que Pausar/Cancelar responda incluso en lotes grandes.
+        await waitMs(20);
+      }
+    }
+  }finally{
+    state.sending=false;
+  }
+}
+
+async function sendZplWithCheck(kind,zpl,labelCount,description){
   const device=await ensurePrinter(kind);
+  const state=printerRuntime[kind]||printerRuntime.bulk;
   let status="Responde correctamente";
   try{status=await zebraStatus(device);}catch(e){console.warn("No se pudo leer estado",e);}
-  if(/Sin papel|Sin ribbon|Cabezal abierto|Pausada/i.test(status)){
+  if(/Sin papel|Sin ribbon|Cabezal abierto/i.test(status)){
     throw new Error(`${device.name}: ${status}`);
+  }
+  if(/Pausada/i.test(status) && !state.paused){
+    throw new Error(`${device.name}: está pausada. Presiona Reanudar antes de imprimir.`);
   }
   const ok=confirm(`${description}\n\nImpresora: ${device.name}\nCantidad: ${labelCount} etiqueta(s)\nEstado: ${status}\n\n¿Enviar a impresión?`);
   if(!ok)return false;
-  await bpSend(device,zpl);
+
+  // Un trabajo nuevo queda asociado a la generación actual.
+  state.paused=false;
+  try{
+    await sendControlledZpl(kind,device,zpl);
+  }catch(e){
+    if(e?.message==="__PRINT_CANCELLED__"){
+      toast(`⛔ Trabajo cancelado. No se enviarán más etiquetas a ${device.name}.`);
+      return false;
+    }
+    throw e;
+  }
   toast(`Enviado a ${device.name}: ${labelCount} etiqueta(s)`);
   return true;
 }
 
 document.querySelectorAll(".printer-pause").forEach(btn=>{
   btn.addEventListener("click",async()=>{
-    const original=btn.textContent;
-    btn.disabled=true;
-    btn.textContent="⏸ Pausando...";
+    const original=btn.textContent; btn.disabled=true; btn.textContent="⏸ Pausando...";
     try{await pausePrinter(btn.dataset.printerKind||"bulk");}
     finally{btn.disabled=false;btn.textContent=original;}
   });
@@ -5680,9 +5762,7 @@ document.querySelectorAll(".printer-pause").forEach(btn=>{
 
 document.querySelectorAll(".printer-resume").forEach(btn=>{
   btn.addEventListener("click",async()=>{
-    const original=btn.textContent;
-    btn.disabled=true;
-    btn.textContent="▶ Reanudando...";
+    const original=btn.textContent; btn.disabled=true; btn.textContent="▶ Reanudando...";
     try{await resumePrinter(btn.dataset.printerKind||"bulk");}
     finally{btn.disabled=false;btn.textContent=original;}
   });
@@ -5691,11 +5771,11 @@ document.querySelectorAll(".printer-resume").forEach(btn=>{
 document.querySelectorAll(".emergency-stop").forEach(btn=>{
   btn.addEventListener("click",async()=>{
     const kind=btn.dataset.printerKind||"bulk";
-    const printer=kind==="general"?"ZT231":"ZT410";
-    if(!confirm(`¿CANCELAR TODO EL TRABAJO DE ${printer}?\n\nSe pausará la impresora, se limpiará el lote pendiente y quedará bloqueada hasta que presiones Reanudar.`))return;
+    const printer=printerExpectedName(kind);
+    if(!confirm(`¿CANCELAR TODO EL TRABAJO DE ${printer}?\n\nSe detendrá el envío desde la web, se limpiará el lote recibido por la Zebra y quedará pausada hasta que presiones Reanudar.`))return;
     const original=btn.textContent;
     btn.disabled=true;
-    btn.textContent="⏹ Limpiando...";
+    btn.textContent="⏹ Cancelando...";
     try{ await emergencyStopPrinter(kind); }
     finally{ btn.disabled=false; btn.textContent=original; }
   });
