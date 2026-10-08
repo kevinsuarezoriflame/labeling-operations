@@ -4398,11 +4398,11 @@ async function pausePrinter(kind){
     return false;
   }
   if(c.paused)return true;
-  // Pausa de COLA: termina la fila ya enviada y no manda la siguiente.
+  // Pausa de COLA: termina el bloque ya enviado (hasta 10 filas) y no manda el siguiente.
   // No usamos ~PP aquí para evitar que Zebra salte/retenga una fila ya aceptada.
   c.paused=true;
   setPrintControlUI(kind,"paused","⏸ Pausada");
-  toast("⏸ Pausa aplicada · termina la fila enviada y conserva la siguiente pendiente.");
+  toast("⏸ Pausa aplicada · termina el bloque actual (hasta 10 filas) y conserva el siguiente pendiente.");
   return true;
 }
 async function resumePrinter(kind){
@@ -4418,7 +4418,7 @@ async function resumePrinter(kind){
     c.paused=false;
     releasePauseWaiters(kind);
     setPrintControlUI(kind,"running","▶ Continuando");
-    toast(`▶ ${device.name} continúa desde la siguiente fila pendiente.`);
+    toast(`▶ ${device.name} continúa desde el siguiente bloque pendiente.`);
     return true;
   }catch(e){console.error(e);toast(`No se pudo continuar: ${e.message||e}`);return false;}
 }
@@ -4483,22 +4483,29 @@ async function controlledBpSend(kind,device,zpl,labelCount){
   const token=++c.token;
   c.active=true;c.paused=false;c.cancelled=false;
   const formats=makeControlledFormats(zpl);
-  setPrintControlUI(kind,"running",`Fila 0/${Math.max(1,formats.length)}`);
+  const ROWS_PER_BLOCK=10;
+  const totalRows=Math.max(1,formats.length);
+  setPrintControlUI(kind,"running",`Filas 0/${totalRows}`);
   let sent=0;
   try{
-    for(const format of formats){
+    for(let i=0;i<formats.length;i+=ROWS_PER_BLOCK){
       if(c.cancelled || c.token!==token)throw new Error("PRINT_JOB_CANCELLED");
       await waitWhilePaused(kind,token);
       if(c.cancelled || c.token!==token)throw new Error("PRINT_JOB_CANCELLED");
-      await bpSend(device,format);
-      sent++;
-      setPrintControlUI(kind,"running",`Fila ${sent}/${formats.length}`);
-      // No volcamos todo el lote a Browser Print. Dejamos una ventana real entre filas.
+
+      // Rendimiento: enviamos hasta 10 filas por bloque a Browser Print.
+      // En material de 4 etiquetas por fila equivale a hasta 40 etiquetas por envío.
+      const block=formats.slice(i,i+ROWS_PER_BLOCK);
+      await bpSend(device,block.join(""));
+      sent+=block.length;
+      setPrintControlUI(kind,"running",`Filas ${sent}/${totalRows}`);
+
+      // Conserva una ventana corta entre bloques para Pausa/Cancelar.
       if(sent<formats.length){
-        for(let t=0;t<9;t++){
+        for(let t=0;t<2;t++){
           if(c.cancelled || c.token!==token)throw new Error("PRINT_JOB_CANCELLED");
           await waitWhilePaused(kind,token);
-          await new Promise(r=>setTimeout(r,50));
+          await new Promise(r=>setTimeout(r,40));
         }
       }
     }
