@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v92 · Browser Print Auto + Control Seguro</title>
+  <title>Labeling Operations v88.4 · PRN Normal exacto</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -265,13 +265,43 @@
     .btn-success{background:linear-gradient(135deg,#12a350,#0b7d3d);color:#fff}
     .btn-light{background:#f3f6fa;color:#4f5c6d;border:1px solid var(--line)}
     .btn-danger{background:var(--red);color:#fff}
-    .btn-warning{background:#f59e0b;color:#fff}
     .btn-outline{background:#fff;color:var(--blue);border:1px solid #b8d0fb}
+    .btn-warning{background:linear-gradient(135deg,#f6b321,#e99800);color:#fff}
     .btn-sm{padding:7px 9px;font-size:11px}
     .w100{width:100%}
     .mt10{margin-top:10px}
     .mt12{margin-top:12px}
     .mt16{margin-top:16px}
+
+    .print-control-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .print-control-row.compact{margin-top:12px}
+    .print-control-state{display:inline-flex;align-items:center;justify-content:center;min-width:68px;padding:7px 9px;border-radius:999px;background:#eef1f5;color:#5d6775;border:1px solid var(--line);font-size:11px;font-weight:800}
+    .print-control-state.running{background:#e7f8ee;color:#0c7e38;border-color:#b7e4c7}
+    .print-control-state.paused{background:#fff3df;color:#b16400;border-color:#ffd59d}
+    .print-control-state.cancelled{background:#ffe8e6;color:#bd2824;border-color:#f4b5b1}
+    .toolbar-compact-field{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .toolbar-compact-field label{font-size:10px;color:var(--muted);font-weight:800}
+    .toolbar-compact-field .field{padding:7px 8px;border-radius:8px}
+    .type-select-wrap{width:150px}
+    .qty-compact-wrap{width:72px}
+    .normal-y-tools{display:inline-flex;align-items:center;gap:5px;height:31px;padding:3px 7px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#536174;font-size:11px;font-weight:800}
+    .normal-y-btn{width:24px;height:24px;border:0;border-radius:6px;background:#eef4ff;color:var(--blue);font-weight:900;padding:0;display:grid;place-items:center}
+    .normal-y-btn:hover{background:#dfeaff}
+
+    .confirm-overlay{position:fixed;inset:0;background:rgba(10,20,38,.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}
+    .confirm-overlay.show{display:flex}
+    .confirm-card{width:min(520px,100%);background:#fff;border-radius:18px;box-shadow:0 30px 70px rgba(7,19,38,.28);border:1px solid #dfe6ef;overflow:hidden}
+    .confirm-head{padding:18px 20px 12px;border-bottom:1px solid #eef2f6;display:flex;align-items:flex-start;gap:12px}
+    .confirm-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#eef5ff;color:#1264e8;font-size:22px;flex:0 0 auto}
+    .confirm-title{font-size:18px;font-weight:900;margin:0}
+    .confirm-sub{margin-top:4px;font-size:12px;color:var(--muted)}
+    .confirm-body{padding:18px 20px}
+    .confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    .confirm-item{background:#f8fafc;border:1px solid #e7edf4;border-radius:12px;padding:12px}
+    .confirm-label{font-size:11px;color:#6e7a8a;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+    .confirm-value{font-size:14px;font-weight:800;color:#172033;line-height:1.35;word-break:break-word}
+    .confirm-note{margin-top:12px;background:#fff8eb;border:1px solid #ffe1a8;color:#8a5a00;border-radius:12px;padding:11px 12px;font-size:12px;line-height:1.45}
+    .confirm-actions{padding:0 20px 20px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 
     .dropzone{
       border:1.5px dashed #a9c0e5;border-radius:12px;padding:18px;text-align:center;background:#f9fbff
@@ -825,6 +855,7 @@
 
     .group-live-editor.editor-collapsed{grid-template-columns:minmax(0,1fr)}
     .group-live-editor.editor-collapsed .group-editor-tools{display:none}
+    .group-live-editor.editor-collapsed .group-editor-stage{min-height:360px;padding:22px}
     #toggleGroupEditor[disabled]{opacity:.45;cursor:not-allowed}
 
     .batch-file-details,.config-details{
@@ -1177,15 +1208,33 @@
                 <div class="mt10" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
                   <button class="btn btn-light btn-sm" id="prevItem">←</button>
                   <button class="btn btn-light btn-sm" id="nextItem">→</button>
-                  <button class="btn btn-outline btn-sm" id="openEdit">Editar clasificación</button>
-                  <div style="margin-left:auto;min-width:120px">
+                  <div class="toolbar-compact-field type-select-wrap">
+                    <label>Tipo de etiqueta</label>
+                    <select class="field" id="labelTypeSelect">
+                      <option value="automatico">Automático</option>
+                      <option value="normal">Normal</option>
+                      <option value="larga">Larga</option>
+                      <option value="triple">NSO Triple</option>
+                      <option value="ancha">Ancha</option>
+                    </select>
+                  </div>
+                  <div class="toolbar-compact-field qty-compact-wrap">
                     <label>Cantidad</label>
                     <input class="field" type="number" min="1" id="printQty" value="1">
                   </div>
-                  <button class="btn btn-success" id="printGroup">🖨 Imprimir</button>
-                  <button class="btn btn-warning printer-pause" data-printer-kind="bulk" title="Pausa la ZT410">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="bulk" title="Reanuda la ZT410">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" title="Cancela TODO el trabajo pendiente de la ZT410">⛔ CANCELAR TRABAJO</button>
+                  <button class="btn btn-success btn-sm" id="printGroup">🖨 Imprimir</button>
+                  <button class="btn btn-warning btn-sm" data-print-action="pause" data-printer-kind="bulk">⏸ Pausa</button>
+                  <button class="btn btn-outline btn-sm" data-print-action="resume" data-printer-kind="bulk">▶ Seguir</button>
+                  <button class="btn btn-danger btn-sm" data-print-action="cancel" data-printer-kind="bulk">⛔ Cancelar</button>
+                  <button class="btn btn-light btn-sm" id="testNormal4" style="display:none">🧪 Prueba x4</button>
+                  <span class="normal-y-tools" id="normalPhysicalControls" style="display:none">
+                    <strong>Y:</strong>
+                    <span id="normalYValue">0</span>
+                    <button class="normal-y-btn" type="button" id="normalYUp" title="Subir todo el formato Normal 2 dots">↑</button>
+                    <button class="normal-y-btn" type="button" id="normalYDown" title="Bajar todo el formato Normal 2 dots">↓</button>
+                    <button class="normal-y-btn" type="button" id="normalYReset" title="Volver a posición original">0</button>
+                  </span>
+                  <span class="print-control-state" data-print-state="bulk">✓ Lista</span>
                 </div>
               </div>
             </div>
@@ -1310,11 +1359,12 @@
                   <input class="field" type="number" id="vialQty" value="1" min="1">
                 </div>
                 <button class="btn btn-success w100 mt12" id="printVialBtn">🖨 Imprimir Código / Armado</button>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                    <button class="btn btn-warning printer-pause" data-printer-kind="bulk" style="flex:1">⏸ Pausar</button>
-                    <button class="btn btn-outline printer-resume" data-printer-kind="bulk" style="flex:1">▶ Reanudar</button>
-                    <button class="btn btn-danger emergency-stop" data-printer-kind="bulk" style="flex-basis:100%">⛔ CANCELAR TRABAJO</button>
-                  </div>
+                <div class="print-control-row compact">
+                  <button class="btn btn-warning btn-sm" data-print-action="pause" data-printer-kind="bulk">⏸ Pausa</button>
+                  <button class="btn btn-outline btn-sm" data-print-action="resume" data-printer-kind="bulk">▶ Seguir</button>
+                  <button class="btn btn-danger btn-sm" data-print-action="cancel" data-printer-kind="bulk">⛔ Cancelar</button>
+                  <span class="print-control-state" data-print-state="bulk">✓ Lista</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1350,9 +1400,10 @@
                 <div class="general-result-rule"><strong>Resultado:</strong> siempre 14 dígitos = <strong>Código (6)</strong> + <strong>Unidades/caja (4)</strong> + <strong>Caducidad (4)</strong>. Ej.: 46796 + 72 + 129 → <strong>04769600720129</strong>.</div>
                 <div class="general-actions-clean">
                   <button class="btn btn-success" id="printGeneralBtn">🖨 Imprimir General</button>
-                  <button class="btn btn-warning printer-pause" data-printer-kind="general" title="Pausa la ZT231">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="general" title="Reanuda la ZT231">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela TODO el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
+                  <button class="btn btn-warning" data-print-action="pause" data-printer-kind="general">⏸ Pausa</button>
+                  <button class="btn btn-outline" data-print-action="resume" data-printer-kind="general">▶ Seguir</button>
+                  <button class="btn btn-danger" data-print-action="cancel" data-printer-kind="general">⛔ Cancelar</button>
+                  <span class="print-control-state" data-print-state="general">✓ Lista</span>
                   <span class="push-right"></span>
                   <button class="btn btn-outline btn-sm" id="toggleGeneralEditor">✎ Editar</button>
                   <button class="btn btn-light btn-sm" id="resetGeneralLayout">Restaurar</button>
@@ -1395,9 +1446,10 @@
                     <button class="btn btn-light btn-sm" id="clearGeneralBulk">Limpiar</button>
                     <span class="push-right"></span>
                     <button class="btn btn-success" id="printGeneralBulk">🖨 Imprimir lote General</button>
-                  <button class="btn btn-warning printer-pause" data-printer-kind="general" title="Pausa la ZT231">⏸ Pausar</button>
-                  <button class="btn btn-outline printer-resume" data-printer-kind="general" title="Reanuda la ZT231">▶ Reanudar</button>
-                  <button class="btn btn-danger emergency-stop" data-printer-kind="general" title="Cancela TODO el trabajo pendiente de la ZT231">⛔ CANCELAR TRABAJO</button>
+                    <button class="btn btn-warning btn-sm" data-print-action="pause" data-printer-kind="general">⏸ Pausa</button>
+                    <button class="btn btn-outline btn-sm" data-print-action="resume" data-printer-kind="general">▶ Seguir</button>
+                    <button class="btn btn-danger btn-sm" data-print-action="cancel" data-printer-kind="general">⛔ Cancelar</button>
+                    <span class="print-control-state" data-print-state="general">✓ Lista</span>
                   </div>
                   <div class="general-bulk-paste-note">Puedes escribir directamente o pegar varias filas desde Excel. Orden: <strong>Código · Descripción · Unid./caja · Caducidad · Cantidad · Fecha</strong>. El <strong>Resultado</strong> se calcula automáticamente.</div>
                   <div class="table-wrap" style="max-height:340px">
@@ -1542,6 +1594,7 @@
                     </div>
 
                     <button class="btn btn-primary mt12" id="saveMaster">Guardar / actualizar</button>
+                    <div class="source-status mt10" id="manualSaveStatus">Los nuevos códigos se guardarán localmente y se confirmarán en Firebase.</div>
 
                     <div class="master-list">
                       <table>
@@ -1763,27 +1816,21 @@
 
                   <div class="form-grid mt16">
                     <div>
-                      <label>Bulk · ZT410</label>
+                      <label>Bulk · ZT410 / ZT411</label>
                       <select class="field" id="bulkPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Normal, Larga, NSO Triple/Múltiple, Ancha y Códigos/Armados.</div>
-                      <button class="btn btn-outline btn-sm mt10" id="testBulkPrinter">Imprimir 1 prueba ZT410</button>
-                      <button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="bulk">⏸ Pausar ZT410</button>
-                      <button class="btn btn-outline btn-sm mt10 printer-resume" data-printer-kind="bulk">▶ Reanudar ZT410</button>
-                      <button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="bulk">⛔ Cancelar trabajo ZT410</button>
+                      <button class="btn btn-outline btn-sm mt10" id="testBulkPrinter">Imprimir 1 prueba ZT410/ZT411</button>
                     </div>
                     <div>
                       <label>General · ZT231</label>
                       <select class="field" id="generalPrinterSelect"><option value="">Detecta las impresoras primero</option></select>
                       <div class="help">Etiqueta General / Final.</div>
                       <button class="btn btn-outline btn-sm mt10" id="testGeneralPrinter">Imprimir 1 prueba ZT231</button>
-                      <button class="btn btn-warning btn-sm mt10 printer-pause" data-printer-kind="general">⏸ Pausar ZT231</button>
-                      <button class="btn btn-outline btn-sm mt10 printer-resume" data-printer-kind="general">▶ Reanudar ZT231</button>
-                      <button class="btn btn-danger btn-sm mt10 emergency-stop" data-printer-kind="general">⛔ Cancelar trabajo ZT231</button>
                     </div>
                   </div>
 
                   <div class="printer-status mt16" id="printerAssignmentSummary">
-                    <strong>Asignación esperada:</strong> ZT410-203dpi → etiquetas Bulk · ZT231-203dpi → Etiqueta General.
+                    <strong>Asignación esperada:</strong> ZT410/ZT411-203dpi → etiquetas Bulk · ZT231-203dpi → Etiqueta General.
                   </div>
                   <div class="help mt10">
                     <strong>Medios calibrados:</strong>
@@ -1792,7 +1839,7 @@
                   <div class="panel mt16" style="box-shadow:none">
                     <div class="panel-head" style="padding:12px 14px">
                       <div>
-                        <div class="panel-title" style="font-size:14px">Material vertical ZT410 · 4 etiquetas por fila</div>
+                        <div class="panel-title" style="font-size:14px">Material vertical ZT410/ZT411 · 4 etiquetas por fila</div>
                         <div class="panel-sub">Normal / NSO Triple / Armados se imprimen de izquierda a derecha antes de avanzar a la siguiente fila.</div>
                       </div>
                     </div>
@@ -2706,6 +2753,21 @@ if(false && db.settings.verticalLegibilityVersion!=="v46"){
   db.settings.verticalLegibilityVersion="v46";
   try{saveDB();}catch(_){}
 }
+if(db.settings.normalPrnExactPreviewVersion!=="v88.4-prn-B-270"){
+  const refs=referenceLayouts();
+  for(const type of ["normal","triple","armados"]){
+    db.templates[type]=db.templates[type]||structuredClone(DEFAULT_DB.templates[type]);
+    db.templates[type]._layout=structuredClone(refs[type]);
+  }
+  // Tamaños visuales equivalentes a los ^A0 del PRN Normal.
+  Object.assign(db.templates.normal.code,{size:17,weight:800,align:"left",lines:1,stretchX:1});
+  Object.assign(db.templates.normal.desc,{size:8,weight:600,align:"left",lines:1,stretchX:1});
+  Object.assign(db.templates.normal.nso,{size:6,weight:600,align:"left",lines:1,stretchX:1});
+  Object.assign(db.templates.normal.import,{size:8,weight:600,align:"left",lines:1,stretchX:1});
+  db.settings.normalPrnExactPreviewVersion="v88.4-prn-B-270";
+  try{saveDB();}catch(_){}
+}
+
 if(db.settings.generalCorporateTemplateVersion!=="thermal-corporate-v42"){
   const keepNames=Array.isArray(db.settings.generalBoxNames)?db.settings.generalBoxNames.slice():[];
   db.settings.generalTemplate=structuredClone(DEFAULT_DB.settings.generalTemplate);
@@ -2761,13 +2823,13 @@ function referenceLayouts(){
   // Ancha = 32×20 mm = 256×160 dots
   return {
     normal:{w:104,h:200,unit:"dot",mmW:13,mmH:25,orientation:"vertical",items:{
-      // Patrón ZebraDesigner real: código arriba, barcode a la izquierda,
-      // luego NSO, descripción regulatoria e importador.
-      code:{x:4,y:3,w:96,h:26,rotation:0},
-      barcode:{x:4,y:32,w:40,h:164,rotation:90},
-      nso:{x:47,y:32,w:16,h:164,rotation:90},
-      desc:{x:65,y:32,w:23,h:164,rotation:90},
-      import:{x:90,y:32,w:10,h:164,rotation:90}
+      // v88.4 · Geometría tomada del PRN "Etiqueta normal H(2).prn".
+      // ^A0B / ^BCB = orientación B (270°), NO 90°.
+      code:{x:12,y:3,w:82,h:19,rotation:0},
+      barcode:{x:13,y:29,w:51,h:163,rotation:270},
+      nso:{x:67,y:29,w:7,h:165,rotation:270},
+      desc:{x:78,y:29,w:9,h:165,rotation:270},
+      import:{x:88,y:29,w:9,h:164,rotation:270}
     }},
     larga:{w:256,h:104,unit:"dot",mmW:32,mmH:13,orientation:"horizontal",items:{
       // v62: coordenadas locales visuales ajustadas al PRN real.
@@ -2780,9 +2842,9 @@ function referenceLayouts(){
     triple:{w:104,h:200,unit:"dot",mmW:13,mmH:25,orientation:"vertical",items:{
       // Patrón ZebraDesigner real Triple: SIN nombre comercial.
       code:{x:4,y:3,w:96,h:26,rotation:0},
-      barcode:{x:4,y:32,w:40,h:164,rotation:90},
-      nso:{x:47,y:32,w:40,h:164,rotation:90},
-      import:{x:89,y:32,w:11,h:164,rotation:90}
+      barcode:{x:8,y:32,w:36,h:158,rotation:270},
+      nso:{x:47,y:32,w:40,h:158,rotation:270},
+      import:{x:89,y:32,w:11,h:156,rotation:270}
     }},
     ancha:{w:256,h:160,unit:"dot",mmW:32,mmH:20,orientation:"horizontal",items:{
       // v62: bloque derecho reservado al código, igual que el PRN.
@@ -2796,9 +2858,9 @@ function referenceLayouts(){
     armados:{w:104,h:200,unit:"dot",mmW:13,mmH:25,orientation:"vertical",items:{
       // Armados usa la misma geometría aprobada de NSO Triple / Múltiple.
       code:{x:4,y:3,w:96,h:26,rotation:0},
-      barcode:{x:4,y:32,w:40,h:164,rotation:90},
-      nso:{x:47,y:32,w:40,h:164,rotation:90},
-      import:{x:89,y:32,w:11,h:164,rotation:90}
+      barcode:{x:8,y:32,w:36,h:158,rotation:270},
+      nso:{x:47,y:32,w:40,h:158,rotation:270},
+      import:{x:89,y:32,w:11,h:156,rotation:270}
     }}
   };
 }
@@ -3081,9 +3143,9 @@ function bulkDisplayModel(p,type){
     content:(type==="ancha" || type==="larga") ? cleanContainsText(p?.longText||"") : "",
     nsos,
     nso:nsos.join("  "),
-    import:(type==="larga"||type==="ancha")
-      ? "IMP POR ORIFLAME S.A."
-      : (db.settings.importador||"")
+    import:type==="normal"
+      ? "IMPORTADO POR ORIFLAME DEL ECUADOR S.A."
+      : ((type==="larga"||type==="ancha") ? "IMP POR ORIFLAME S.A." : (db.settings.importador||""))
   };
 }
 
@@ -3391,8 +3453,18 @@ document.getElementById("toggleGroupEditor")?.addEventListener("click",()=>{
   if(!item?.product || currentType==="review")return;
   groupEditorOpen=!groupEditorOpen;
   syncGroupEditorVisibility();
+  renderLabelPreview(item);
 });
 
+function updateNormalPhysicalControls(){
+  const show=currentType==="normal" && currentTypeItems.length>0;
+  const test=document.getElementById("testNormal4");
+  const tools=document.getElementById("normalPhysicalControls");
+  if(test)test.style.display=show?"inline-flex":"none";
+  if(tools)tools.style.display=show?"inline-flex":"none";
+  const val=document.getElementById("normalYValue");
+  if(val)val.textContent=normalPrintYOffsetLabel();
+}
 function renderCurrent(){
   const info=typeInfo[currentType] || {label:"—",badge:"b-gray"};
   document.getElementById("currentGroupBadge").className=`badge ${info.badge}`;
@@ -3402,8 +3474,14 @@ function renderCurrent(){
   document.getElementById("previewCounter").textContent=currentTypeItems.length ? `${currentIndex+1} / ${currentTypeItems.length}`:"0 / 0";
   const item=currentTypeItems[currentIndex];
   document.getElementById("printQty").value=item?.qty||1;
+  const typeSel=document.getElementById("labelTypeSelect");
+  if(typeSel){
+    const p=item?.product;
+    typeSel.value=(p?.manualType||"") || "automatico";
+  }
   renderLabelPreview(item);
   syncGroupEditorVisibility();
+  updateNormalPhysicalControls();
   // La impresora se configurará más adelante; aquí solo gestionamos la etiqueta y cantidad.
 }
 document.getElementById("prevItem").addEventListener("click",()=>{
@@ -3766,6 +3844,12 @@ function groupEditorType(){
   return currentType==="review"?"normal":currentType;
 }
 function groupEditorZoomValue(){
+  // Vista previa compacta para que los controles de impresión queden visibles.
+  // Al abrir Editar, vuelve al zoom seleccionado por el usuario.
+  if(!groupEditorOpen){
+    const t=groupEditorType();
+    if(t==="normal" || t==="triple" || t==="armados") return 2.5;
+  }
   return Math.max(1,Number(document.getElementById("groupEditorZoom")?.value||4));
 }
 function groupEditorKeys(type){
@@ -4185,111 +4269,197 @@ async function bpSend(device,data){
   return bpRequest("POST","write",{device:bpDevicePayload(device),data});
 }
 
-const printerRuntime={
-  bulk:{paused:false,generation:0,sending:false},
-  general:{paused:false,generation:0,sending:false}
+const printControl={
+  bulk:{active:false,paused:false,cancelled:false,token:0,pauseWaiters:[]},
+  general:{active:false,paused:false,cancelled:false,token:0,pauseWaiters:[]}
 };
-
-function printerModelRegex(kind){
-  return kind==="general" ? /ZT231/i : /ZT410/i;
+function pcState(kind){return printControl[kind]||printControl.bulk;}
+function setPrintControlUI(kind,state,label){
+  document.querySelectorAll(`[data-print-state="${kind}"]`).forEach(el=>{
+    el.textContent=label||state.toUpperCase()||"✓ Lista";
+    el.className=`print-control-state ${state||""}`.trim();
+  });
 }
-function printerExpectedName(kind){
-  return kind==="general" ? "ZT231" : "ZT410";
+function releasePauseWaiters(kind){
+  const c=pcState(kind), list=c.pauseWaiters.splice(0);
+  list.forEach(fn=>{try{fn();}catch(_){}});
 }
-async function resolvePrinterAutomatic(kind){
-  if(!bpDevices.length) await detectZebraPrinters(false);
-
-  // 1. Mantener la asignación local si Browser Print todavía reconoce ese UID/nombre.
-  let device=assignedPrinter(kind);
-  if(device) return device;
-
-  // 2. Si cambió el UID de Browser Print, recuperar automáticamente por modelo.
-  const rx=printerModelRegex(kind);
-  device=bpDevices.find(d=>rx.test(String(d.name||"")))||null;
-
-  // 3. Fallback seguro: elegir el único equipo que no corresponda al otro modelo.
-  if(!device){
-    const otherRx=kind==="general" ? /ZT410/i : /ZT231/i;
-    const candidates=bpDevices.filter(d=>!otherRx.test(String(d.name||"")));
-    if(candidates.length===1) device=candidates[0];
+async function waitWhilePaused(kind,token){
+  const c=pcState(kind);
+  while(c.paused && !c.cancelled && c.token===token){
+    await new Promise(resolve=>c.pauseWaiters.push(resolve));
   }
-
-  // 4. Si Browser Print solo devuelve una impresora, usarla sin obligar a Configuración.
-  if(!device && bpDevices.length===1) device=bpDevices[0];
-
-  if(!device){
-    throw new Error(`Zebra Browser Print no encontró la ${printerExpectedName(kind)}. Verifica que Browser Print esté abierto y que la impresora esté en línea.`);
-  }
-
-  // Repara automáticamente la asignación local para las siguientes impresiones.
-  db.settings.printers=db.settings.printers||{};
-  if(kind==="general"){
-    db.settings.printers.generalUid=device.uid||"";
-    db.settings.printers.generalName=device.name||"";
-    const sel=document.getElementById("generalPrinterSelect"); if(sel) sel.value=device.uid||"";
-  }else{
-    db.settings.printers.bulkUid=device.uid||"";
-    db.settings.printers.bulkName=device.name||"";
-    const sel=document.getElementById("bulkPrinterSelect"); if(sel) sel.value=device.uid||"";
-  }
-  saveDB();
-  updatePrinterSummary();
-  return device;
+  if(c.cancelled || c.token!==token) throw new Error("PRINT_JOB_CANCELLED");
 }
-
+function splitZplIntoFormats(zpl){
+  const text=String(zpl||"");
+  const formats=text.match(/\^XA[\s\S]*?\^XZ/g) || [];
+  return formats.length ? formats : (text.trim() ? [text] : []);
+}
+function expandFormatQuantity(format){
+  const m=String(format).match(/\^PQ\s*(\d+)/i);
+  if(!m)return [format];
+  const qty=Math.max(1,parseInt(m[1],10)||1);
+  if(qty<=1)return [format];
+  const one=String(format).replace(/\^PQ\s*\d+(?:\s*,[^\^]*)?/i,"^PQ1");
+  return Array.from({length:qty},()=>one);
+}
+function makeControlledFormats(zpl){
+  return splitZplIntoFormats(zpl).flatMap(expandFormatQuantity);
+}
 async function pausePrinter(kind){
-  const state=printerRuntime[kind]||printerRuntime.bulk;
-  state.paused=true;
+  const c=pcState(kind);
+  c.paused=true;
+  setPrintControlUI(kind,"paused","PAUSADA");
   try{
-    const device=await resolvePrinterAutomatic(kind);
+    const device=await ensurePrinter(kind);
     await bpSend(device,"~PP");
-    toast(`⏸ ${device.name} pausada. La web no enviará más formatos hasta Reanudar.`);
+    toast(`⏸ ${device.name} pausada.`);
     return true;
-  }catch(e){
-    state.paused=false;
-    console.error(e); toast(e.message||String(e)); return false;
-  }
+  }catch(e){console.error(e);toast(`No se pudo pausar: ${e.message||e}`);return false;}
 }
-
 async function resumePrinter(kind){
-  const state=printerRuntime[kind]||printerRuntime.bulk;
+  const c=pcState(kind);
   try{
-    const device=await resolvePrinterAutomatic(kind);
+    const device=await ensurePrinter(kind);
     await bpSend(device,"~PS");
-    state.paused=false;
-    toast(`▶ ${device.name} reanudada.`);
+    c.paused=false;
+    if(c.cancelled)c.cancelled=false;
+    releasePauseWaiters(kind);
+    setPrintControlUI(kind,c.active?"running":"","✓ Lista");
+    toast(`▶ ${device.name} lista para continuar.`);
     return true;
-  }catch(e){console.error(e);toast(e.message||String(e));return false;}
+  }catch(e){console.error(e);toast(`No se pudo reanudar: ${e.message||e}`);return false;}
+}
+function clearCancelledJobUI(kind){
+  if(kind==="bulk"){
+    const batchText=document.getElementById("batchText");
+    if(batchText)batchText.value="";
+    renderBatchInput([]);
+    currentResults=[];
+    currentType=null;
+    currentTypeItems=[];
+    currentIndex=0;
+    groupEditorSelected="code";
+    groupEditorOpen=false;
+    const qty=document.getElementById("printQty"); if(qty)qty.value="1";
+    renderResults();
+    renderCurrent();
+
+    // Si el trabajo venía de Armados, limpia también esa búsqueda/vista previa.
+    try{currentArmado=null;}catch(_){}
+    const vs=document.getElementById("vialSearch"); if(vs)vs.value="";
+    const vq=document.getElementById("vialQty"); if(vq)vq.value="1";
+    const vi=document.getElementById("vialInfo"); if(vi)vi.innerHTML="Busca un código / armado para comenzar.";
+    try{renderVialPreview();}catch(_){}
+  }else if(kind==="general"){
+    const q=document.getElementById("generalQty"); if(q)q.value="1";
+    // No borramos maestro/catálogos; solo el trabajo de impresión temporal.
+    const bulk=document.getElementById("generalBulkText"); if(bulk)bulk.value="";
+    try{generalBulkRows=[];renderGeneralBulkTable();}catch(_){}
+  }
 }
 
 async function emergencyStopPrinter(kind){
-  const state=printerRuntime[kind]||printerRuntime.bulk;
-  // Invalida inmediatamente cualquier bucle de envío que todavía esté activo en la web.
-  state.generation++;
-  state.paused=true;
+  const c=pcState(kind);
+  c.cancelled=true;
+  c.paused=false;
+  c.active=false;
+  c.token++;
+  releasePauseWaiters(kind);
+  setPrintControlUI(kind,"cancelled","CANCELANDO...");
+  clearCancelledJobUI(kind);
   try{
-    const device=await resolvePrinterAutomatic(kind);
-    // ~JA cancela todos los formatos/lotes que la Zebra ya recibió.
-    // ~PP la deja pausada para impedir que un operador reactive accidentalmente el lote malo.
+    const device=await ensurePrinter(kind);
     await bpSend(device,"~JA");
+    await new Promise(r=>setTimeout(r,120));
     await bpSend(device,"~PP");
-    toast(`⛔ Trabajo cancelado en ${device.name}. Cola web detenida y Zebra pausada.`);
+    setPrintControlUI(kind,"cancelled","CANCELADA");
+    toast(`⛔ Trabajo cancelado y pantalla limpia. ${device.name} quedó pausada.`);
+    return true;
+  }catch(e){console.error(e);toast(`Se detuvo el trabajo local, pero no se pudo confirmar Zebra: ${e.message||e}`);return false;}
+}
+async function controlledBpSend(kind,device,zpl,labelCount){
+  const c=pcState(kind);
+  const token=++c.token;
+  c.active=true;c.paused=false;c.cancelled=false;
+  const formats=makeControlledFormats(zpl);
+  setPrintControlUI(kind,"running",`ENVIANDO 0/${Math.max(1,formats.length)}`);
+  let sent=0;
+  try{
+    for(const format of formats){
+      if(c.cancelled || c.token!==token)throw new Error("PRINT_JOB_CANCELLED");
+      await waitWhilePaused(kind,token);
+      if(c.cancelled || c.token!==token)throw new Error("PRINT_JOB_CANCELLED");
+      await bpSend(device,format);
+      sent++;
+      setPrintControlUI(kind,"running",`ENVIANDO ${sent}/${formats.length}`);
+      await new Promise(r=>setTimeout(r,35));
+    }
+    c.active=false;
+    setPrintControlUI(kind,"","✓ Lista");
     return true;
   }catch(e){
-    console.error(e);
-    toast(`No se pudo cancelar la impresión: ${e.message||e}`);
-    return false;
+    c.active=false;
+    if(String(e?.message||e)==="PRINT_JOB_CANCELLED"){
+      setPrintControlUI(kind,"cancelled","CANCELADA");
+      return false;
+    }
+    setPrintControlUI(kind,"cancelled","ERROR");
+    throw e;
   }
 }
+function showPrintConfirm({title,deviceName,labelCount,status,kind}){
+  return new Promise(resolve=>{
+    const overlay=document.getElementById("printConfirmOverlay");
+    if(!overlay)return resolve(confirm(`${title}
 
-async function bpRead(device){
-  return bpRequest("POST","read",{device:bpDevicePayload(device)});
+Impresora: ${deviceName}
+Cantidad: ${labelCount} etiqueta(s)
+Estado: ${status}
+
+¿Enviar a impresión?`));
+    const els={
+      title:document.getElementById("printConfirmTitle"),
+      subtitle:document.getElementById("printConfirmSubtitle"),
+      printer:document.getElementById("printConfirmPrinter"),
+      qty:document.getElementById("printConfirmQty"),
+      status:document.getElementById("printConfirmStatus"),
+      job:document.getElementById("printConfirmJob"),
+      ok:document.getElementById("printConfirmAccept"),
+      cancel:document.getElementById("printConfirmCancel")
+    };
+    els.title.textContent="Confirmar impresión";
+    els.subtitle.textContent=kind==="general" ? "Etiqueta General / Final · revisa antes de imprimir." : "Bulk / Armados · confirma la data antes de enviar.";
+    els.printer.textContent=deviceName||"-";
+    els.qty.textContent=`${labelCount} etiqueta(s)`;
+    els.status.textContent=status||"Sin estado";
+    els.job.textContent=title||"Trabajo de impresión";
+    let done=false;
+    const finish=(value)=>{
+      if(done)return; done=true;
+      overlay.classList.remove("show");
+      overlay.setAttribute("aria-hidden","true");
+      document.removeEventListener("keydown",onKey);
+      overlay.removeEventListener("click",onOverlay);
+      els.ok.removeEventListener("click",onOk);
+      els.cancel.removeEventListener("click",onCancel);
+      resolve(value);
+    };
+    const onOk=()=>finish(true);
+    const onCancel=()=>finish(false);
+    const onOverlay=(e)=>{ if(e.target===overlay)finish(false); };
+    const onKey=(e)=>{ if(e.key==="Escape")finish(false); };
+    els.ok.addEventListener("click",onOk);
+    els.cancel.addEventListener("click",onCancel);
+    overlay.addEventListener("click",onOverlay);
+    document.addEventListener("keydown",onKey);
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden","false");
+    setTimeout(()=>els.ok.focus(),20);
+  });
 }
-async function bpSendThenRead(device,data){
-  await bpSend(device,data);
-  await new Promise(r=>setTimeout(r,180));
-  return bpRead(device);
-}
+
 function bpFindDevice(uid,name){
   return bpDevices.find(d=>d.uid===uid) ||
          bpDevices.find(d=>String(d.name||"").toLowerCase()===String(name||"").toLowerCase()) ||
@@ -4314,6 +4484,15 @@ function printerOptionHTML(d){
   const label=`${d.name||d.uid} · ${d.connection||"local"}`;
   return `<option value="${escapeHTML(d.uid||"")}">${escapeHTML(label)}</option>`;
 }
+function bpBestDevice(regex){
+  const matches=bpDevices.filter(d=>regex.test(String(d.name||"")));
+  if(!matches.length)return null;
+  // Prioridad: driver/ZDesigner local antes que una entrada de red/IP.
+  return matches.find(d=>/zdesigner/i.test(String(d.name||""))) ||
+         matches.find(d=>/driver/i.test(String(d.connection||""))) ||
+         matches.find(d=>!/network/i.test(String(d.connection||""))) ||
+         matches[0];
+}
 function populatePrinterSelects(){
   const bulk=document.getElementById("bulkPrinterSelect");
   const gen=document.getElementById("generalPrinterSelect");
@@ -4322,18 +4501,28 @@ function populatePrinterSelects(){
   bulk.innerHTML=options; gen.innerHTML=options;
 
   const s=db.settings.printers||{};
-  let bulkUid=s.bulkUid, genUid=s.generalUid;
+  const storedBulk=bpFindDevice(s.bulkUid,s.bulkName);
+  const storedGen=bpFindDevice(s.generalUid,s.generalName);
 
-  if(!bulkUid){
-    const auto=bpDevices.find(d=>/ZT410/i.test(d.name||""));
-    if(auto){bulkUid=auto.uid;s.bulkUid=auto.uid;s.bulkName=auto.name;}
+  // La impresora Bulk real puede reportarse como ZT410 o ZT411.
+  // Si quedó guardada una entrada de red/IP vieja, prioriza el driver ZDesigner detectado por Browser Print.
+  const bestBulk=bpBestDevice(/ZT41[01]/i);
+  const bestGen=bpBestDevice(/ZT231/i);
+
+  let bulkDevice=storedBulk;
+  if(bestBulk){
+    const storedLooksDriver=storedBulk && (/zdesigner/i.test(String(storedBulk.name||"")) || /driver/i.test(String(storedBulk.connection||"")));
+    const bestLooksDriver=/zdesigner/i.test(String(bestBulk.name||"")) || /driver/i.test(String(bestBulk.connection||""));
+    if(!storedBulk || (!storedLooksDriver && bestLooksDriver)) bulkDevice=bestBulk;
   }
-  if(!genUid){
-    const auto=bpDevices.find(d=>/ZT231/i.test(d.name||""));
-    if(auto){genUid=auto.uid;s.generalUid=auto.uid;s.generalName=auto.name;}
-  }
-  bulk.value=bulkUid||"";
-  gen.value=genUid||"";
+
+  let genDevice=storedGen || bestGen;
+
+  if(bulkDevice){s.bulkUid=bulkDevice.uid;s.bulkName=bulkDevice.name;}
+  if(genDevice){s.generalUid=genDevice.uid;s.generalName=genDevice.name;}
+
+  bulk.value=bulkDevice?.uid||"";
+  gen.value=genDevice?.uid||"";
   db.settings.printers=s; saveDB();
   updatePrinterSummary();
 }
@@ -4380,7 +4569,23 @@ async function zebraStatus(device){
   return statuses.length?statuses.join(" · "):"Responde correctamente";
 }
 async function ensurePrinter(kind){
-  return resolvePrinterAutomatic(kind);
+  if(!bpDevices.length)await detectZebraPrinters(false);
+  let d=assignedPrinter(kind);
+  if(!d){
+    d=kind==="general" ? bpBestDevice(/ZT231/i) : bpBestDevice(/ZT41[01]/i);
+    if(d){
+      db.settings.printers=db.settings.printers||{};
+      if(kind==="general"){
+        db.settings.printers.generalUid=d.uid;db.settings.printers.generalName=d.name;
+      }else{
+        db.settings.printers.bulkUid=d.uid;db.settings.printers.bulkName=d.name;
+      }
+      saveDB();
+      populatePrinterSelects();
+    }
+  }
+  if(!d)throw new Error(kind==="general"?"Browser Print no detectó la ZT231":"Browser Print no detectó la ZT410/ZT411");
+  return d;
 }
 const ZEBRA_PRINT_DPI=203;
 const ZEBRA_DOTS_PER_MM=ZEBRA_PRINT_DPI/25.4;
@@ -5280,9 +5485,29 @@ function exactLongFits(p){
   if(!base)return false;
   return wrapByCapsSafe(base,[31,30]).length<=2;
 }
+function normalPrintYOffset(){
+  // Positivo = subir físicamente el bloque completo. No altera posiciones relativas del PRN.
+  return Math.max(-20,Math.min(20,Number(db.settings?.normalPrintYOffset||0)));
+}
+function normalPrintYOffsetLabel(){
+  const v=normalPrintYOffset();
+  return v===0?"0":v>0?`↑${v}`:`↓${Math.abs(v)}`;
+}
+function setNormalPrintYOffset(v){
+  db.settings=db.settings||{};
+  db.settings.normalPrintYOffset=Math.max(-20,Math.min(20,Math.round(Number(v)||0)));
+  saveDB();
+  updateNormalPhysicalControls();
+  toast(`Etiqueta Normal · Y ${normalPrintYOffsetLabel()} dots`);
+}
+function verticalPrnPagePrefix(labelTop=0){
+  // Fuerza el estado físico en cada página. Evita heredar ^PO/^PM/^LH de trabajos anteriores.
+  return `^XA^MMT^PW470^LL208^LS0^LT${Math.round(labelTop)}^PON^PMN^LH0,0^FWN^CI27`;
+}
 function buildNormalExactZDesignerPage(products){
-  let z="^XA^MMT^PW470^LL208^LS0";
-  const importer="IMP POR ORIFLAME S.A.";
+  // PRN aprobado intacto. Únicamente se aplica Label Top global al bloque completo.
+  let z=verticalPrnPagePrefix(-normalPrintYOffset());
+  const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
     const b=col*120, code=String(p?.code||"").trim();
@@ -5297,7 +5522,7 @@ function buildNormalExactZDesignerPage(products){
 }
 function buildTripleExactZDesignerPage(products){
   // 2 Nso Triple.prn: PW470 / LL208 / pitch 120 / BY2,3,36 / BCB.
-  let z="^XA^MMT^PW470^LL208^LS0";
+  let z=verticalPrnPagePrefix();
   const importer="IMP POR ORIFLAME S.A.";
   const nsoX=[58,71,82];
   products.slice(0,4).forEach((p,col)=>{
@@ -5477,7 +5702,7 @@ function exactArmadoCodeWidth(code){
 }
 function buildArmadoExactNormalPage(products){
   // v77: Armados imprime con el mismo formato físico de NSO Triple / Múltiple.
-  let z="^XA^MMT^PW470^LL208^LS0";
+  let z=verticalPrnPagePrefix();
   const importer="IMP POR ORIFLAME S.A.";
   const nsoX=[58,71,82];
 
@@ -5582,22 +5807,40 @@ async function buildWysiwygSingleZPL(product,type,qty=1){
   return `^XA^CI28^FWN^PW${g.width}^LL${g.height}^LH0,0^LS0${graphicZPL(g,0,0)}${nativeBarcodeZPL(product,type,0,0)}^PQ${n}^XZ`;
 }
 async function buildFourUpGroupZPL(items,type){
+  const separatorBlank={__separatorBlank:true};
+  const separatorQty=2;
+
   if(type==="larga"||type==="ancha"){
     const cfg=type==="larga"
       ?{cols:3,pw:825,ll:104,builder:buildLongEditorNativePage}
       :{cols:3,pw:811,ll:160,builder:buildWideEditorNativePage};
-    let z="",row=[],total=0;
+
+    let z="",row=[],total=0,blankCount=0;
     const flush=()=>{if(!row.length)return;z+=cfg.builder(row);row=[];};
-    for(const item of items){
+
+    items.forEach((item,itemIndex)=>{
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
       for(let i=0;i<qty;i++){
-        row.push(item.product);total++;
-        if(row.length===3)flush();
+        row.push(item.product);
+        total++;
+        if(row.length===cfg.cols)flush();
       }
-    }
+
+      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
+      if(itemIndex<items.length-1){
+        for(let s=0;s<separatorQty;s++){
+          row.push(separatorBlank);
+          blankCount++;
+          if(row.length===cfg.cols)flush();
+        }
+      }
+    });
+
     flush();
-    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:3};
+    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:3};
   }
+
   const cfg={
     normal:{cols:4,pw:470,ll:208,builder:buildNormalExactZDesignerPage},
     triple:{cols:4,pw:470,ll:208,builder:buildTripleExactZDesignerPage},
@@ -5605,26 +5848,72 @@ async function buildFourUpGroupZPL(items,type){
   }[type];
 
   if(cfg){
-    let z="",row=[],total=0;
+    let z="",row=[],total=0,blankCount=0;
     const flush=()=>{if(row.length){z+=cfg.builder(row);row=[];}};
-    for(const item of items){
+
+    items.forEach((item,itemIndex)=>{
       const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
       for(let i=0;i<qty;i++){
-        row.push(item.product);total++;
+        row.push(item.product);
+        total++;
         if(row.length===cfg.cols)flush();
       }
-    }
+
+      // Dos etiquetas físicas vacías SOLO entre un código y el siguiente.
+      if(itemIndex<items.length-1){
+        for(let s=0;s<separatorQty;s++){
+          row.push(separatorBlank);
+          blankCount++;
+          if(row.length===cfg.cols)flush();
+        }
+      }
+    });
+
     flush();
-    return {zpl:z,total,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
+    return {zpl:z,total,blankCount,pageW:cfg.pw,pageH:cfg.ll,columns:cfg.cols};
   }
 
   // Fallback heredado para cualquier formato futuro.
   const sheet=bulkSheetConfig(),media=zebraMedia(type),labelW=mmToDots(media.w),labelH=mmToDots(media.h);
   const pageW=sheet.left+sheet.columns*labelW+Math.max(0,sheet.columns-1)*sheet.gapX,pageH=labelH+sheet.gapY;
-  let z="",row=[],total=0;
-  const flushRow=async()=>{if(!row.length)return;z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;for(let col=0;col<row.length;col++){const product=row[col],x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);z+=graphicZPL(graphic,x,0);z+=nativeBarcodeZPL(product,type,x,0);}z+="^PQ1^XZ";row=[];};
-  for(const item of items){const qty=Math.max(1,parseInt(item.qty||1,10)||1);for(let i=0;i<qty;i++){row.push(item.product);total++;if(row.length===sheet.columns)await flushRow();}}
-  await flushRow();return {zpl:z,total,pageW,pageH,columns:sheet.columns};
+  let z="",row=[],total=0,blankCount=0;
+
+  const flushRow=async()=>{
+    if(!row.length)return;
+    z+=`^XA^CI28^FWN^PW${pageW}^LL${pageH}^LH0,0^LS0`;
+    for(let col=0;col<row.length;col++){
+      const product=row[col];
+      if(product?.__separatorBlank)continue;
+      const x=sheet.left+col*(labelW+sheet.gapX),graphic=await rasterizePreviewToGraphic(product,type);
+      z+=graphicZPL(graphic,x,0);
+      z+=nativeBarcodeZPL(product,type,x,0);
+    }
+    z+="^PQ1^XZ";
+    row=[];
+  };
+
+  for(let itemIndex=0;itemIndex<items.length;itemIndex++){
+    const item=items[itemIndex];
+    const qty=Math.max(1,parseInt(item.qty||1,10)||1);
+
+    for(let i=0;i<qty;i++){
+      row.push(item.product);
+      total++;
+      if(row.length===sheet.columns)await flushRow();
+    }
+
+    if(itemIndex<items.length-1){
+      for(let s=0;s<separatorQty;s++){
+        row.push(separatorBlank);
+        blankCount++;
+        if(row.length===sheet.columns)await flushRow();
+      }
+    }
+  }
+
+  await flushRow();
+  return {zpl:z,total,blankCount,pageW,pageH,columns:sheet.columns};
 }
 
 function buildArmadoProduct(v){
@@ -5679,107 +5968,19 @@ function buildGeneralZPL(data,qty=1){
   return z;
 }
 
-function zplFormatUnits(zpl){
-  const raw=String(zpl||"");
-  const matches=raw.match(/[\s\S]*?\^XZ/gi)||[];
-  const consumed=matches.join("").length;
-  const tail=raw.slice(consumed).trim();
-  if(tail) matches.push(tail);
-  if(!matches.length && raw.trim()) matches.push(raw);
-
-  const units=[];
-  for(const format of matches){
-    const pq=format.match(/\^PQ\s*(\d+)([^\^~]*)/i);
-    const copies=pq?Math.max(1,parseInt(pq[1]||"1",10)||1):1;
-    const one=(pq && copies>1)
-      ? format.replace(pq[0],`^PQ1${pq[2]||""}`)
-      : format;
-    units.push({zpl:one,copies});
-  }
-  return units;
-}
-function waitMs(ms){return new Promise(r=>setTimeout(r,ms));}
-
-async function sendControlledZpl(kind,device,zpl){
-  const state=printerRuntime[kind]||printerRuntime.bulk;
-  const myGeneration=state.generation;
-  state.sending=true;
-  try{
-    const units=zplFormatUnits(zpl);
-    for(const unit of units){
-      for(let copy=0;copy<unit.copies;copy++){
-        if(state.generation!==myGeneration) throw new Error("__PRINT_CANCELLED__");
-        while(state.paused && state.generation===myGeneration){
-          await waitMs(120);
-        }
-        if(state.generation!==myGeneration) throw new Error("__PRINT_CANCELLED__");
-        await bpSend(device,unit.zpl);
-        // Cede el control al navegador para que Pausar/Cancelar responda incluso en lotes grandes.
-        await waitMs(20);
-      }
-    }
-  }finally{
-    state.sending=false;
-  }
-}
-
 async function sendZplWithCheck(kind,zpl,labelCount,description){
   const device=await ensurePrinter(kind);
-  const state=printerRuntime[kind]||printerRuntime.bulk;
   let status="Responde correctamente";
   try{status=await zebraStatus(device);}catch(e){console.warn("No se pudo leer estado",e);}
-  if(/Sin papel|Sin ribbon|Cabezal abierto/i.test(status)){
+  if(/Sin papel|Sin ribbon|Cabezal abierto|Pausada/i.test(status)){
     throw new Error(`${device.name}: ${status}`);
   }
-  if(/Pausada/i.test(status) && !state.paused){
-    throw new Error(`${device.name}: está pausada. Presiona Reanudar antes de imprimir.`);
-  }
-  const ok=confirm(`${description}\n\nImpresora: ${device.name}\nCantidad: ${labelCount} etiqueta(s)\nEstado: ${status}\n\n¿Enviar a impresión?`);
+  const ok=await showPrintConfirm({title:description,deviceName:device.name,labelCount,status,kind});
   if(!ok)return false;
-
-  // Un trabajo nuevo queda asociado a la generación actual.
-  state.paused=false;
-  try{
-    await sendControlledZpl(kind,device,zpl);
-  }catch(e){
-    if(e?.message==="__PRINT_CANCELLED__"){
-      toast(`⛔ Trabajo cancelado. No se enviarán más etiquetas a ${device.name}.`);
-      return false;
-    }
-    throw e;
-  }
-  toast(`Enviado a ${device.name}: ${labelCount} etiqueta(s)`);
-  return true;
+  const sent=await controlledBpSend(kind,device,zpl,labelCount);
+  if(sent)toast(`Enviado a ${device.name}: ${labelCount} etiqueta(s)`);
+  return sent;
 }
-
-document.querySelectorAll(".printer-pause").forEach(btn=>{
-  btn.addEventListener("click",async()=>{
-    const original=btn.textContent; btn.disabled=true; btn.textContent="⏸ Pausando...";
-    try{await pausePrinter(btn.dataset.printerKind||"bulk");}
-    finally{btn.disabled=false;btn.textContent=original;}
-  });
-});
-
-document.querySelectorAll(".printer-resume").forEach(btn=>{
-  btn.addEventListener("click",async()=>{
-    const original=btn.textContent; btn.disabled=true; btn.textContent="▶ Reanudando...";
-    try{await resumePrinter(btn.dataset.printerKind||"bulk");}
-    finally{btn.disabled=false;btn.textContent=original;}
-  });
-});
-
-document.querySelectorAll(".emergency-stop").forEach(btn=>{
-  btn.addEventListener("click",async()=>{
-    const kind=btn.dataset.printerKind||"bulk";
-    const printer=printerExpectedName(kind);
-    if(!confirm(`¿CANCELAR TODO EL TRABAJO DE ${printer}?\n\nSe detendrá el envío desde la web, se limpiará el lote recibido por la Zebra y quedará pausada hasta que presiones Reanudar.`))return;
-    const original=btn.textContent;
-    btn.disabled=true;
-    btn.textContent="⏹ Cancelando...";
-    try{ await emergencyStopPrinter(kind); }
-    finally{ btn.disabled=false; btn.textContent=original; }
-  });
-});
 
 document.getElementById("detectZebras")?.addEventListener("click",()=>detectZebraPrinters(true));
 document.getElementById("bulkPrinterSelect")?.addEventListener("change",e=>{
@@ -5790,6 +5991,18 @@ document.getElementById("generalPrinterSelect")?.addEventListener("change",e=>{
   const d=bpFindDevice(e.target.value,"");
   db.settings.printers.generalUid=d?.uid||"";db.settings.printers.generalName=d?.name||"";saveDB();updatePrinterSummary();
 });
+
+document.querySelectorAll("[data-print-action]").forEach(btn=>{
+  btn.addEventListener("click",async()=>{
+    const kind=btn.dataset.printerKind||"bulk";
+    const action=btn.dataset.printAction;
+    if(action==="pause") await pausePrinter(kind);
+    else if(action==="resume") await resumePrinter(kind);
+    else if(action==="cancel") await emergencyStopPrinter(kind);
+  });
+});
+setPrintControlUI("bulk","","✓ Lista");
+setPrintControlUI("general","","✓ Lista");
 function loadBulkSheetSettings(){
   const s=db.settings.bulkSheet||DEFAULT_DB.settings.bulkSheet;
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v};
@@ -5816,15 +6029,15 @@ document.getElementById("refreshZebraStatus")?.addEventListener("click",async()=
     if(!bpDevices.length)await detectZebraPrinters(false);
     const b=assignedPrinter("bulk"),g=assignedPrinter("general");
     const parts=[];
-    if(b)parts.push(`ZT410: ${await zebraStatus(b)}`);
+    if(b)parts.push(`ZT410/ZT411: ${await zebraStatus(b)}`);
     if(g)parts.push(`ZT231: ${await zebraStatus(g)}`);
     toast(parts.join(" · ")||"No hay impresoras asignadas");
   }catch(e){toast(e.message);}
 });
 document.getElementById("testBulkPrinter")?.addEventListener("click",async()=>{
   try{
-    const z=`^XA^CI28^PW220^LL360^FO18,20^A0N28,28^FDBULK LABEL STUDIO^FS^FO18,62^A0N22,22^FDPRUEBA ZT410^FS^FO18,105^BY2,2,170^BCN,170,N,N,N^FD12345^FS^PQ1^XZ`;
-    await sendZplWithCheck("bulk",z,1,"PRUEBA DE CONEXIÓN ZT410");
+    const z=`^XA^CI28^PW220^LL360^FO18,20^A0N28,28^FDBULK LABEL STUDIO^FS^FO18,62^A0N22,22^FDPRUEBA ZT410/ZT411^FS^FO18,105^BY2,2,170^BCN,170,N,N,N^FD12345^FS^PQ1^XZ`;
+    await sendZplWithCheck("bulk",z,1,"PRUEBA DE CONEXIÓN ZT410/ZT411");
   }catch(e){toast(e.message);}
 });
 document.getElementById("testGeneralPrinter")?.addEventListener("click",async()=>{
@@ -5839,6 +6052,25 @@ setTimeout(()=>{
   const warn=document.getElementById("bpProtocolWarning");
   if(!bpCanRun() && warn)warn.style.display="block";
 },0);
+
+document.getElementById("normalYUp")?.addEventListener("click",()=>setNormalPrintYOffset(normalPrintYOffset()+2));
+document.getElementById("normalYDown")?.addEventListener("click",()=>setNormalPrintYOffset(normalPrintYOffset()-2));
+document.getElementById("normalYReset")?.addEventListener("click",()=>setNormalPrintYOffset(0));
+document.getElementById("testNormal4")?.addEventListener("click",async()=>{
+  if(currentType!=="normal")return toast("Selecciona Etiqueta Normal para hacer la prueba x4");
+  const item=currentTypeItems[currentIndex];
+  if(!item?.product)return toast("No hay código seleccionado para la prueba");
+  try{
+    const p=item.product;
+    const z=buildNormalExactZDesignerPage([p,p,p,p]);
+    await sendZplWithCheck(
+      "bulk",
+      z,
+      4,
+      `PRUEBA x4 · Etiqueta Normal · Y ${normalPrintYOffsetLabel()} dots`
+    );
+  }catch(e){console.error(e);toast(e.message||String(e));}
+});
 
 document.getElementById("printGroup").addEventListener("click",async()=>{
   if(!currentTypeItems.length){toast("No hay etiquetas en este grupo");return;}
@@ -5873,22 +6105,25 @@ document.getElementById("printGroup").addEventListener("click",async()=>{
   }catch(e){console.error(e);toast(e.message);}
 });
 
-window.quickEdit=function(code){
+window.quickEdit=function(code,typeValue){
   const p=db.products[code];
   if(!p)return toast("Producto no existe");
-  const current=p.manualType||classifyProduct(p).type;
-  const next=prompt("Tipo: normal | larga | triple | ancha | automático",current);
-  if(next===null)return;
-  const v=next.trim().toLowerCase();
-  if(v==="automático"||v==="automatico"||v===""){p.manualType="";p.forceType="";p.forceSource="";}
-  else if(["normal","larga","triple","ancha"].includes(v)){p.manualType=v;p.forceType=v;p.forceSource="manual";}
-  else return toast("Tipo no válido");
-  saveDB();processBatch();renderMasterTable();toast("Clasificación actualizada");
+  const v=String(typeValue||"automatico").trim().toLowerCase();
+  if(v==="automatico"||v==="automático"||v===""){
+    p.manualType="";p.forceType="";p.forceSource="";
+  }else if(["normal","larga","triple","ancha"].includes(v)){
+    p.manualType=v;p.forceType=v;p.forceSource="manual";
+  }else return toast("Tipo no válido");
+  saveDB();
+  processBatch();
+  renderMasterTable();
+  toast("Tipo de etiqueta actualizado");
 };
 
-document.getElementById("openEdit").addEventListener("click",()=>{
+document.getElementById("labelTypeSelect")?.addEventListener("change",e=>{
   const item=currentTypeItems[currentIndex];
-  if(item) quickEdit(item.code);
+  if(!item)return;
+  quickEdit(item.code,e.target.value);
 });
 
 /* ---------- Importar lote desde Excel ---------- */
@@ -7035,7 +7270,21 @@ document.getElementById("saveMaster").addEventListener("click",async()=>{
   renderMasterTable();
   renderGeneralProductsTable?.();
   updateMasterCounts();
-  toast("Código guardado");
+  setManualSaveStatus(`Guardando ${code} en Firebase...`,"warn");
+
+  const syncs=[syncManualRecordNow("products",code,db.products[code],{silent:true})];
+  const gcode=normalizeGeneralCode(code);
+  if(desc && gcode && db.generalProducts?.[gcode]){
+    syncs.push(syncManualRecordNow("generalProducts",gcode,db.generalProducts[gcode],{silent:true}));
+  }
+  const results=await Promise.all(syncs);
+  if(results.every(r=>r?.ok)){
+    setManualSaveStatus(`✅ Código ${code} guardado en Firebase`,"ok");
+    toast(`✅ Código ${code} guardado en Firebase`);
+  }else{
+    setManualSaveStatus(`⚠ Código ${code} guardado localmente · pendiente de Firebase`,"warn");
+    toast(`⚠ ${code} guardado localmente · pendiente de Firebase`);
+  }
 });
 
 /* ---------- Cargas de bases específicas ---------- */
@@ -7748,7 +7997,9 @@ document.querySelectorAll("[data-manual]").forEach(btn=>btn.addEventListener("cl
 document.getElementById("saveNr")?.addEventListener("click",async()=>{
   const code=normalizeCode(nrCode.value);const cat=nrCategory.value.trim();if(!code||!cat)return toast("Completa código y Descripción NR");
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado");
-  const p=ensureProduct(code);p.nrCategory=cat;p.category=cat;saveDB();renderMasterTable();updateMasterCounts();toast("Descripción NR guardada y reclasificación actualizada");
+  const p=ensureProduct(code);p.nrCategory=cat;p.category=cat;saveDB();renderMasterTable();updateMasterCounts();
+  const rs=await syncManualRecordNow("products",code,p,{silent:true});
+  toast(rs.ok?"Descripción NR guardada en Firebase":"Descripción NR guardada localmente · pendiente de Firebase");
 });
 function findProductForArmadoNSO(rawCode){
   const q=compactCode(rawCode);
@@ -7834,7 +8085,10 @@ async function persistArmado({allowNoNso=false}={}){
   const rec={number:"",code,description:aDesc.value.trim(),nso};
   db.vials[code]=rec;
   saveDB();renderArmadosTable();updateMasterCounts();
-  toast(nso?"Código / Armado guardado con NSO":"Código / Armado guardado sin NSO");
+  const rs=await syncManualRecordNow("vials",code,rec,{silent:true});
+  toast(rs.ok
+    ?(nso?"Código / Armado guardado en Firebase con NSO":"Código / Armado guardado en Firebase sin NSO")
+    :(nso?"Código / Armado guardado localmente con NSO · pendiente de Firebase":"Código / Armado guardado localmente · pendiente de Firebase"));
   aCode.value="";aDesc.value="";aNsoLookupCode.value="";clearArmadoNsoLookup();
   return true;
 }
@@ -7854,7 +8108,13 @@ document.getElementById("saveGeneralProduct")?.addEventListener("click",async ()
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado");
   db.generalProducts=db.generalProducts||{};const rec={code,description:gpDesc.value.trim(),unitsPerBox:normalizeGeneralUnits(gpUnits.value)};db.generalProducts[code]=rec;
   const p=ensureProduct(code);if(gpDesc.value.trim()&&!p.description)p.description=gpDesc.value.trim();
-  try{await idbPutGeneralProduct(rec);saveDB();renderGeneralProductsTable();renderMasterTable();updateMasterCounts();toast("Descripción producto guardada");}
+  try{
+    await idbPutGeneralProduct(rec);saveDB();renderGeneralProductsTable();renderMasterTable();updateMasterCounts();
+    const syncs=[syncManualRecordNow("generalProducts",code,rec,{silent:true})];
+    if(p?.code)syncs.push(syncManualRecordNow("products",p.code,p,{silent:true}));
+    const rr=await Promise.all(syncs);
+    toast(rr.every(x=>x.ok)?"Descripción producto guardada en Firebase":"Descripción producto guardada localmente · pendiente de Firebase");
+  }
   catch(err){console.error(err);toast("No se pudo guardar: "+err.message);}
 });
 function renderArmadosTable(){
@@ -8259,6 +8519,106 @@ function updateHashes(kind,obj,codes){
   }
   firebaseHashes[kind]=map;
 }
+const MANUAL_FIREBASE_PENDING_KEY="labelingManualFirebasePendingV1";
+function manualPendingLoad(){
+  try{
+    const x=JSON.parse(localStorage.getItem(MANUAL_FIREBASE_PENDING_KEY)||"{}");
+    return {
+      products:x.products&&typeof x.products==="object"?x.products:{},
+      vials:x.vials&&typeof x.vials==="object"?x.vials:{},
+      generalProducts:x.generalProducts&&typeof x.generalProducts==="object"?x.generalProducts:{}
+    };
+  }catch(_){return {products:{},vials:{},generalProducts:{}};}
+}
+function manualPendingSave(p){
+  localStorage.setItem(MANUAL_FIREBASE_PENDING_KEY,JSON.stringify(p||{products:{},vials:{},generalProducts:{}}));
+}
+function queueManualFirebase(kind,code,record){
+  const p=manualPendingLoad();
+  p[kind]=p[kind]||{};
+  p[kind][String(code)]=structuredClone(record||{});
+  manualPendingSave(p);
+}
+function clearManualFirebasePending(kind,code){
+  const p=manualPendingLoad();
+  if(p[kind])delete p[kind][String(code)];
+  manualPendingSave(p);
+}
+function manualKindObject(kind){
+  if(kind==="products")return db.products||(db.products={});
+  if(kind==="vials")return db.vials||(db.vials={});
+  if(kind==="generalProducts")return db.generalProducts||(db.generalProducts={});
+  return null;
+}
+function setManualSaveStatus(text,state="warn"){
+  const el=document.getElementById("manualSaveStatus");
+  if(!el)return;
+  el.textContent=text;
+  el.className="source-status mt10 "+(state==="ok"?"ok":"warn");
+}
+async function syncManualRecordNow(kind,code,record,{silent=false}={}){
+  code=String(code||"").trim();
+  if(!code||!record)return {ok:false,pending:false};
+  queueManualFirebase(kind,code,record);
+
+  if(!window.FirebaseBridge?.ready || firebaseBootstrapInProgress || window.__firebaseApplyingRemote){
+    if(!silent)setManualSaveStatus(`⚠ ${code} guardado localmente · pendiente de Firebase`,"warn");
+    return {ok:false,pending:true};
+  }
+
+  try{
+    const obj=manualKindObject(kind);
+    obj[code]=structuredClone(record);
+    await window.FirebaseBridge.uploadChangedBuckets(kind,obj,[code]);
+    if(kind==="products"||kind==="vials")updateHashes(kind,obj,[code]);
+    clearManualFirebasePending(kind,code);
+    firebaseLastError="";
+    setFirebaseTopStatus("connected","● Firebase conectado");
+    fbSetStatus(`Firebase sincronizado · ${new Date().toLocaleTimeString()} · ${code}`,true);
+    if(!silent)setManualSaveStatus(`✅ ${code} guardado en Firebase`,"ok");
+    return {ok:true,pending:false};
+  }catch(err){
+    console.error("Firebase manual save",kind,code,err);
+    if(!silent)setManualSaveStatus(`⚠ ${code} guardado localmente · pendiente de Firebase`,"warn");
+    return {ok:false,pending:true,error:err};
+  }
+}
+let manualFirebaseFlushRunning=false;
+async function flushPendingManualSync(){
+  if(manualFirebaseFlushRunning || !window.FirebaseBridge?.ready || firebaseBootstrapInProgress || window.__firebaseApplyingRemote)return false;
+  const pending=manualPendingLoad();
+  const total=Object.values(pending).reduce((n,obj)=>n+Object.keys(obj||{}).length,0);
+  if(!total)return true;
+  manualFirebaseFlushRunning=true;
+  let synced=0;
+  try{
+    for(const kind of ["products","vials","generalProducts"]){
+      for(const [code,record] of Object.entries(pending[kind]||{})){
+        const obj=manualKindObject(kind);
+        obj[code]=structuredClone(record);
+        if(kind==="generalProducts"){
+          try{await idbPutGeneralProduct(record);}catch(e){console.warn("Pendiente general IDB",e);}
+        }
+        await window.FirebaseBridge.uploadChangedBuckets(kind,obj,[code]);
+        if(kind==="products"||kind==="vials")updateHashes(kind,obj,[code]);
+        clearManualFirebasePending(kind,code);
+        synced++;
+      }
+    }
+    saveDB();
+    renderMasterTable?.();renderArmadosTable?.();renderGeneralProductsTable?.();updateMasterCounts?.();
+    if(synced){
+      setFirebaseTopStatus("connected","● Firebase conectado");
+      fbSetStatus(`Pendientes sincronizados · ${synced} registro(s)`,true);
+      setManualSaveStatus(`✅ ${synced} registro(s) pendientes sincronizados con Firebase`,"ok");
+    }
+    return true;
+  }catch(err){
+    console.error("flushPendingManualSync",err);
+    return false;
+  }finally{manualFirebaseFlushRunning=false;}
+}
+
 function scheduleFirebaseAutoSync(){
   if(firebaseBootstrapInProgress || !fbAutoEnabled() || window.__firebaseApplyingRemote)return;
   clearTimeout(firebaseSyncTimer);
@@ -8506,6 +8866,9 @@ async function firebaseStartupHydrate(force=false){
   }finally{
     clearTimeout(firebaseStartupWatchdog);
     firebaseStartupHydrating=false;
+    if(firebaseStartupHydrated && !firebaseBootstrapInProgress && window.FirebaseBridge?.ready){
+      setTimeout(()=>flushPendingManualSync(),80);
+    }
   }
 }
 
@@ -8643,6 +9006,7 @@ renderMasterTable();
 renderResults();
 renderBatchInput([]);
 runDataAudit(false);
+updateNormalPhysicalControls?.();
 </script>
 
 
@@ -8650,6 +9014,32 @@ runDataAudit(false);
 
 
 
+
+
+<div class="confirm-overlay" id="printConfirmOverlay" aria-hidden="true">
+  <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="printConfirmTitle">
+    <div class="confirm-head">
+      <div class="confirm-icon">🖨</div>
+      <div>
+        <h3 class="confirm-title" id="printConfirmTitle">Confirmar impresión</h3>
+        <div class="confirm-sub" id="printConfirmSubtitle">Revisa la impresora y los datos antes de enviar.</div>
+      </div>
+    </div>
+    <div class="confirm-body">
+      <div class="confirm-grid">
+        <div class="confirm-item"><div class="confirm-label">Impresora</div><div class="confirm-value" id="printConfirmPrinter">-</div></div>
+        <div class="confirm-item"><div class="confirm-label">Cantidad</div><div class="confirm-value" id="printConfirmQty">-</div></div>
+        <div class="confirm-item"><div class="confirm-label">Estado Zebra</div><div class="confirm-value" id="printConfirmStatus">-</div></div>
+        <div class="confirm-item"><div class="confirm-label">Tipo de trabajo</div><div class="confirm-value" id="printConfirmJob">-</div></div>
+      </div>
+      <div class="confirm-note">Confirma solo si la data está correcta. Si algo sale mal, puedes usar <strong>Pausar</strong> o <strong>Cancelar</strong> sin cerrar Browser Print.</div>
+    </div>
+    <div class="confirm-actions">
+      <button type="button" class="btn btn-light" id="printConfirmCancel">Cancelar</button>
+      <button type="button" class="btn btn-success" id="printConfirmAccept">Sí, enviar a impresión</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
