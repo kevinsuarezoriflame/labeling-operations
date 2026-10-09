@@ -1607,23 +1607,7 @@
                     </div>
 
                     <button class="btn btn-primary mt12" id="saveMaster">Guardar / actualizar</button>
-                    <div class="source-status mt10" id="manualSaveStatus">Los nuevos códigos se guardarán localmente y se confirmarán en Firebase.</div>
-
-                    <div class="master-list">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Código</th>
-                            <th>Descripción Orisales</th>
-                            <th>Categoría</th>
-                            <th>NSO</th>
-                            <th>Tipo</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody id="masterTable"></tbody>
-                      </table>
-                    </div>
+                    <div class="source-status mt10" id="manualSaveStatus">Guardado en vivo: el registro solo se confirma cuando Firebase responde y se verifica.</div>
                   </div>
 
                   
@@ -1659,12 +1643,12 @@
 
                   <div class="section-divider"></div>
                   <div class="source-card mt16" style="border-color:#b9cdf0;background:#f8fbff">
-                    <h4>Control de integridad de las bases</h4>
+                    <h4>Consulta de códigos</h4>
                     <div style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:8px;align-items:center">
-                      <input class="field" id="auditCodeInput" placeholder="Código a validar">
-                      <button class="btn btn-primary" type="button" id="auditValidateBtn">Validar bases</button>
+                      <input class="field" id="auditCodeInput" placeholder="Código a consultar">
+                      <button class="btn btn-primary" type="button" id="auditValidateBtn">Consultar código</button>
                     </div>
-                    <div id="auditSummary" class="source-status" style="margin-top:10px">Aún no se ha ejecutado una validación.</div>
+                    <div id="auditSummary" class="source-status" style="margin-top:10px">Ingresa un código para consultar su información en las bases.</div>
 
                     <div id="auditDetail" class="audit-detail hidden">
                       <div class="audit-detail-head">
@@ -2013,7 +1997,7 @@
 })();
 
 /* =========================================================
-   LABELING OPERATIONS - PROTOTIPO FRONTEND
+   LABELING OPERATIONS - v88.11 FIREBASE EN VIVO
    Base local ahora. Firestore después.
    ========================================================= */
 
@@ -2025,6 +2009,7 @@
   const DB="(default)";
   const ROOT=`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB}/documents`;
   const BATCH_ROOT=`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB}/documents:batchWrite`;
+  const COMMIT_ROOT=`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DB}/documents:commit`;
   const DATA_COLLECTION="labeling_data";
   const SYSTEM_COLLECTION="_system";
   const BUCKETS={products:32,vials:8,generalProducts:64};
@@ -2225,6 +2210,59 @@
     await batchWrites(writes);
   }
 
+  function manualDocKind(kind){
+    if(!BUCKETS[kind])throw new Error(`Tipo Firebase no soportado: ${kind}`);
+    return `manual_${kind}`;
+  }
+
+  function manualDocId(kind,code){
+    const safe=String(code||"").trim().replace(/[^A-Za-z0-9._-]/g,ch=>`_${ch.charCodeAt(0).toString(16)}_`);
+    if(!safe)throw new Error("Código vacío");
+    return `manual_${kind}_${safe}`;
+  }
+
+  async function commitWrites(writes){
+    if(!writes?.length)return;
+    await request(COMMIT_ROOT,{
+      method:"POST",
+      body:JSON.stringify({writes})
+    },30000);
+  }
+
+  async function uploadManualRecords(entries=[]){
+    const clean=(entries||[]).map(x=>({
+      kind:String(x?.kind||""),
+      code:String(x?.code||"").trim(),
+      record:x?.record
+    })).filter(x=>x.code && x.record);
+    if(!clean.length)throw new Error("No hay registros para guardar");
+
+    const writes=clean.map(x=>writeDoc(DATA_COLLECTION,manualDocId(x.kind,x.code),{
+      kind:manualDocKind(x.kind),
+      code:x.code,
+      record:x.record,
+      updatedAt:new Date().toISOString()
+    }));
+
+    // Commit es atómico: si una escritura falla, no se confirma el conjunto.
+    await commitWrites(writes);
+
+    // Lectura de confirmación: no mostramos éxito hasta comprobar que Firestore lo devuelve.
+    for(const x of clean){
+      const doc=await getDocument(DATA_COLLECTION,manualDocId(x.kind,x.code));
+      if(!doc)throw new Error(`Firebase no confirmó el código ${x.code}`);
+      const data=decodeFields(doc.fields||{});
+      if(data.kind!==manualDocKind(x.kind) || String(data.code||"")!==x.code || !data.record){
+        throw new Error(`Verificación incompleta en Firebase para ${x.code}`);
+      }
+    }
+    return true;
+  }
+
+  async function uploadManualRecord(kind,code,record){
+    return uploadManualRecords([{kind,code,record}]);
+  }
+
   async function uploadSharedState(sharedState){
     await batchWrites([
       writeDoc(SYSTEM_COLLECTION,"app_config",{
@@ -2287,6 +2325,7 @@
     const products={};
     const vials={};
     const generalProducts={};
+    const manualOverlays={products:[],vials:[],generalProducts:[]};
 
     for(const doc of docs){
       const data=decodeFields(doc.fields||{});
@@ -2298,8 +2337,23 @@
 
       if(target && data.records && typeof data.records==="object"){
         Object.assign(target,data.records);
+        continue;
+      }
+
+      const manualTarget=
+        data.kind==="manual_products" ? manualOverlays.products :
+        data.kind==="manual_vials" ? manualOverlays.vials :
+        data.kind==="manual_generalProducts" ? manualOverlays.generalProducts :
+        null;
+      if(manualTarget && data.code && data.record && typeof data.record==="object"){
+        manualTarget.push({code:String(data.code),record:data.record});
       }
     }
+
+    // Los ingresos manuales son una capa persistente y siempre prevalecen sobre la base masiva.
+    for(const x of manualOverlays.products)products[x.code]=x.record;
+    for(const x of manualOverlays.vials)vials[x.code]=x.record;
+    for(const x of manualOverlays.generalProducts)generalProducts[x.code]=x.record;
 
     const cfgDoc=await getDocument(SYSTEM_COLLECTION,"app_config");
     const sharedState=cfgDoc ? decodeFields(cfgDoc.fields||{}) : null;
@@ -2325,6 +2379,8 @@
     downloadAll,
     uploadSharedState,
     uploadChangedBuckets,
+    uploadManualRecords,
+    uploadManualRecord,
     testConnection
   };
 })();
@@ -7333,6 +7389,7 @@ document.getElementById("printGeneralBtn")?.addEventListener("click",async()=>{
 /* ---------- Maestros ---------- */
 function renderMasterTable(){
   const tbody=document.getElementById("masterTable");
+  if(!tbody)return;
   const arr=Object.values(db.products);
   tbody.innerHTML=arr.map(p=>{
     const c=classifyProduct(p), info=typeInfo[c.type];
@@ -7418,7 +7475,7 @@ document.getElementById("saveMaster").addEventListener("click",async()=>{
   const nsos=getManualNsos();
   const longText=document.getElementById("mLongText").value.trim();
 
-  db.products[code]={
+  const productRecord={
     ...prev,
     code,
     description:desc || prev.description || "",
@@ -7426,48 +7483,47 @@ document.getElementById("saveMaster").addEventListener("click",async()=>{
     nrCategory:category || prev.nrCategory || "",
     nsos,
     longText,
-    // El ingreso manual queda en clasificación automática.
     manualType:"",
     forceType:"",
     forceSource:""
   };
 
-  // "Descripción de producto (Orisales)" reemplaza también el antiguo
-  // ingreso manual de "Descripción productos".
-  if(desc){
-    const gcode=normalizeGeneralCode(code);
-    if(gcode){
+  const writes=[{kind:"products",code,record:productRecord}];
+  let generalRecord=null,gcode=normalizeGeneralCode(code);
+  if(desc && gcode){
+    const oldGeneral=generalProductRecord(code)||db.generalProducts?.[gcode]||{};
+    generalRecord={...oldGeneral,code:gcode,description:desc,unitsPerBox:oldGeneral.unitsPerBox||""};
+    writes.push({kind:"generalProducts",code:gcode,record:generalRecord});
+  }
+
+  const btn=document.getElementById("saveMaster");
+  const oldLabel=btn?.textContent||"Guardar / actualizar";
+  if(btn){btn.disabled=true;btn.textContent="Guardando en Firebase...";}
+  setManualSaveStatus(`Guardando ${code} en Firebase y verificando...`,"warn");
+
+  try{
+    await saveManualRecordsLive(writes,{silent:true});
+
+    // Solo después de que Firebase confirma, actualizamos la copia local.
+    db.products[code]=productRecord;
+    if(generalRecord){
       db.generalProducts=db.generalProducts||{};
-      const oldGeneral=generalProductRecord(code)||db.generalProducts[gcode]||{};
-      const rec={
-        ...oldGeneral,
-        code:gcode,
-        description:desc,
-        unitsPerBox:oldGeneral.unitsPerBox||""
-      };
-      db.generalProducts[gcode]=rec;
-      try{await idbPutGeneralProduct(rec);}catch(err){console.error("Orisales IndexedDB",err);}
+      db.generalProducts[gcode]=generalRecord;
+      try{await idbPutGeneralProduct(generalRecord);}catch(err){console.warn("Firebase guardó, pero IndexedDB local falló",err);}
     }
-  }
-
-  saveDB();
-  renderMasterTable();
-  renderGeneralProductsTable?.();
-  updateMasterCounts();
-  setManualSaveStatus(`Guardando ${code} en Firebase...`,"warn");
-
-  const syncs=[syncManualRecordNow("products",code,db.products[code],{silent:true})];
-  const gcode=normalizeGeneralCode(code);
-  if(desc && gcode && db.generalProducts?.[gcode]){
-    syncs.push(syncManualRecordNow("generalProducts",gcode,db.generalProducts[gcode],{silent:true}));
-  }
-  const results=await Promise.all(syncs);
-  if(results.every(r=>r?.ok)){
-    setManualSaveStatus(`✅ Código ${code} guardado en Firebase`,"ok");
-    toast(`✅ Código ${code} guardado en Firebase`);
-  }else{
-    setManualSaveStatus(`⚠ Código ${code} guardado localmente · pendiente de Firebase`,"warn");
-    toast(`⚠ ${code} guardado localmente · pendiente de Firebase`);
+    saveDB();
+    renderMasterTable();
+    renderGeneralProductsTable?.();
+    updateMasterCounts();
+    setManualSaveStatus(`✅ Código ${code} guardado y verificado en Firebase`,"ok");
+    toast(`✅ ${code} guardado en Firebase`);
+  }catch(err){
+    console.error("Guardado en vivo Firebase",err);
+    setFirebaseTopStatus("offline","● Firebase con error de escritura");
+    setManualSaveStatus(`⛔ NO se guardó ${code}. Firebase no confirmó: ${err?.message||err}`,"warn");
+    toast(`No se guardó ${code}: ${err?.message||err}`);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldLabel;}
   }
 });
 
@@ -8118,27 +8174,23 @@ bindSourceFile("fileGeneralProducts",importGeneralProductsFile);
 
 function runAuditAction(){
   const code=normalizeCode(document.getElementById("auditCodeInput")?.value||"");
-
-  if(code){
-    const r=auditOneProduct(code);
-    const el=document.getElementById("auditSummary");
-
+  const el=document.getElementById("auditSummary");
+  if(!code){
     if(el){
-      el.className="source-status "+(r.ok?"ok":"warn");
-      el.innerHTML=r.html;
+      el.className="source-status warn";
+      el.textContent="Ingresa un código para consultar.";
     }
-
-    renderAuditDetail(r);
+    document.getElementById("auditDetail")?.classList.add("hidden");
+    document.getElementById("auditCodeInput")?.focus();
     return;
   }
 
-  // Sin código escrito: realiza la validación general de todas las bases.
-  const detail=document.getElementById("auditDetail");
-  if(detail)detail.classList.add("hidden");
-  repairAllProducts();
-  saveDB();
-  renderMasterTable();
-  runDataAudit(true);
+  const r=auditOneProduct(code);
+  if(el){
+    el.className="source-status "+(r.ok?"ok":"warn");
+    el.innerHTML=r.html;
+  }
+  renderAuditDetail(r);
 }
 
 document.getElementById("auditValidateBtn")?.addEventListener("click",runAuditAction);
@@ -8181,9 +8233,13 @@ document.querySelectorAll("[data-manual]").forEach(btn=>btn.addEventListener("cl
 document.getElementById("saveNr")?.addEventListener("click",async()=>{
   const code=normalizeCode(nrCode.value);const cat=nrCategory.value.trim();if(!code||!cat)return toast("Completa código y Descripción NR");
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado");
-  const p=ensureProduct(code);p.nrCategory=cat;p.category=cat;saveDB();renderMasterTable();updateMasterCounts();
-  const rs=await syncManualRecordNow("products",code,p,{silent:true});
-  toast(rs.ok?"Descripción NR guardada en Firebase":"Descripción NR guardada localmente · pendiente de Firebase");
+  const base=structuredClone(db.products?.[code]||{code});
+  const rec={...base,code,nrCategory:cat,category:cat};
+  try{
+    await saveManualRecordsLive([{kind:"products",code,record:rec}],{silent:true});
+    db.products[code]=rec;saveDB();renderMasterTable();updateMasterCounts();
+    toast("Descripción NR guardada en Firebase");
+  }catch(err){toast("NO se guardó: "+(err?.message||err));}
 });
 function findProductForArmadoNSO(rawCode){
   const q=compactCode(rawCode);
@@ -8267,14 +8323,17 @@ async function persistArmado({allowNoNso=false}={}){
   if(!nso&&!allowNoNso){openArmadoNsoModal();return false;}
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado"),false;
   const rec={number:"",code,description:aDesc.value.trim(),nso};
-  db.vials[code]=rec;
-  saveDB();renderArmadosTable();updateMasterCounts();
-  const rs=await syncManualRecordNow("vials",code,rec,{silent:true});
-  toast(rs.ok
-    ?(nso?"Código / Armado guardado en Firebase con NSO":"Código / Armado guardado en Firebase sin NSO")
-    :(nso?"Código / Armado guardado localmente con NSO · pendiente de Firebase":"Código / Armado guardado localmente · pendiente de Firebase"));
-  aCode.value="";aDesc.value="";aNsoLookupCode.value="";clearArmadoNsoLookup();
-  return true;
+  try{
+    await saveManualRecordsLive([{kind:"vials",code,record:rec}],{silent:true});
+    db.vials[code]=rec;
+    saveDB();renderArmadosTable();updateMasterCounts();
+    toast(nso?"Código / Armado guardado en Firebase con NSO":"Código / Armado guardado en Firebase sin NSO");
+    aCode.value="";aDesc.value="";aNsoLookupCode.value="";clearArmadoNsoLookup();
+    return true;
+  }catch(err){
+    toast("NO se guardó el armado: "+(err?.message||err));
+    return false;
+  }
 }
 
 document.getElementById("saveArmado")?.addEventListener("click",()=>persistArmado());
@@ -8290,16 +8349,20 @@ document.getElementById("armadoNsoModal")?.addEventListener("click",e=>{if(e.tar
 document.getElementById("saveGeneralProduct")?.addEventListener("click",async ()=>{
   const code=normalizeGeneralCode(gpCode.value);if(!code)return toast("Ingresa código");
   if(!(await askReplaceExistingCode(code)))return toast("Ingreso cancelado");
-  db.generalProducts=db.generalProducts||{};const rec={code,description:gpDesc.value.trim(),unitsPerBox:normalizeGeneralUnits(gpUnits.value)};db.generalProducts[code]=rec;
-  const p=ensureProduct(code);if(gpDesc.value.trim()&&!p.description)p.description=gpDesc.value.trim();
+  const rec={code,description:gpDesc.value.trim(),unitsPerBox:normalizeGeneralUnits(gpUnits.value)};
+  const existing=structuredClone(db.products?.[code]||{code});
+  const productRec={...existing,code};
+  if(gpDesc.value.trim()&&!productRec.description)productRec.description=gpDesc.value.trim();
   try{
+    await saveManualRecordsLive([
+      {kind:"generalProducts",code,record:rec},
+      {kind:"products",code,record:productRec}
+    ],{silent:true});
+    db.generalProducts=db.generalProducts||{};db.generalProducts[code]=rec;db.products[code]=productRec;
     await idbPutGeneralProduct(rec);saveDB();renderGeneralProductsTable();renderMasterTable();updateMasterCounts();
-    const syncs=[syncManualRecordNow("generalProducts",code,rec,{silent:true})];
-    if(p?.code)syncs.push(syncManualRecordNow("products",p.code,p,{silent:true}));
-    const rr=await Promise.all(syncs);
-    toast(rr.every(x=>x.ok)?"Descripción producto guardada en Firebase":"Descripción producto guardada localmente · pendiente de Firebase");
+    toast("Descripción producto guardada en Firebase");
   }
-  catch(err){console.error(err);toast("No se pudo guardar: "+err.message);}
+  catch(err){console.error(err);toast("NO se guardó: "+(err?.message||err));}
 });
 function renderArmadosTable(){
   const el=document.getElementById("armadosTable");if(!el)return;
@@ -8740,31 +8803,43 @@ function setManualSaveStatus(text,state="warn"){
   el.textContent=text;
   el.className="source-status mt10 "+(state==="ok"?"ok":"warn");
 }
+async function waitForFirebaseLiveWrite(timeoutMs=15000){
+  if(!window.FirebaseBridge?.ready)throw new Error("Firebase no está disponible");
+  const start=Date.now();
+  while((firebaseBootstrapInProgress || window.__firebaseApplyingRemote) && Date.now()-start<timeoutMs){
+    await new Promise(r=>setTimeout(r,120));
+  }
+  if(firebaseBootstrapInProgress || window.__firebaseApplyingRemote){
+    throw new Error("Firebase todavía está sincronizando la base central");
+  }
+  // Confirma que la lectura central está disponible antes de intentar escribir.
+  await window.FirebaseBridge.testConnection();
+  return true;
+}
+
+async function saveManualRecordsLive(entries,{silent=false}={}){
+  const clean=(entries||[]).map(x=>({kind:x.kind,code:String(x.code||"").trim(),record:structuredClone(x.record||{})})).filter(x=>x.code);
+  if(!clean.length)throw new Error("No hay registros para guardar");
+  await waitForFirebaseLiveWrite();
+  await window.FirebaseBridge.uploadManualRecords(clean);
+  for(const x of clean)clearManualFirebasePending(x.kind,x.code);
+  firebaseLastError="";
+  setFirebaseTopStatus("connected","● Firebase conectado");
+  fbSetStatus(`Firebase guardado en vivo · ${new Date().toLocaleTimeString()} · ${clean.map(x=>x.code).join(", ")}`,true);
+  if(!silent)setManualSaveStatus(`✅ ${clean.map(x=>x.code).join(", ")} guardado en Firebase`,"ok");
+  return true;
+}
+
 async function syncManualRecordNow(kind,code,record,{silent=false}={}){
   code=String(code||"").trim();
   if(!code||!record)return {ok:false,pending:false};
-  queueManualFirebase(kind,code,record);
-
-  if(!window.FirebaseBridge?.ready || firebaseBootstrapInProgress || window.__firebaseApplyingRemote){
-    if(!silent)setManualSaveStatus(`⚠ ${code} guardado localmente · pendiente de Firebase`,"warn");
-    return {ok:false,pending:true};
-  }
-
   try{
-    const obj=manualKindObject(kind);
-    obj[code]=structuredClone(record);
-    await window.FirebaseBridge.uploadChangedBuckets(kind,obj,[code]);
-    if(kind==="products"||kind==="vials")updateHashes(kind,obj,[code]);
-    clearManualFirebasePending(kind,code);
-    firebaseLastError="";
-    setFirebaseTopStatus("connected","● Firebase conectado");
-    fbSetStatus(`Firebase sincronizado · ${new Date().toLocaleTimeString()} · ${code}`,true);
-    if(!silent)setManualSaveStatus(`✅ ${code} guardado en Firebase`,"ok");
+    await saveManualRecordsLive([{kind,code,record}],{silent});
     return {ok:true,pending:false};
   }catch(err){
     console.error("Firebase manual save",kind,code,err);
-    if(!silent)setManualSaveStatus(`⚠ ${code} guardado localmente · pendiente de Firebase`,"warn");
-    return {ok:false,pending:true,error:err};
+    if(!silent)setManualSaveStatus(`⛔ No se guardó ${code} · Firebase: ${err?.message||err}`,"warn");
+    return {ok:false,pending:false,error:err};
   }
 }
 let manualFirebaseFlushRunning=false;
@@ -8783,7 +8858,7 @@ async function flushPendingManualSync(){
         if(kind==="generalProducts"){
           try{await idbPutGeneralProduct(record);}catch(e){console.warn("Pendiente general IDB",e);}
         }
-        await window.FirebaseBridge.uploadChangedBuckets(kind,obj,[code]);
+        await window.FirebaseBridge.uploadManualRecord(kind,code,record);
         if(kind==="products"||kind==="vials")updateHashes(kind,obj,[code]);
         clearManualFirebasePending(kind,code);
         synced++;
