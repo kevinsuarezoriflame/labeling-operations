@@ -559,7 +559,7 @@
       background-size:16px 16px;
     }
     .vial-static-preview .layout-label{
-      transform:scale(2.4);
+      transform:scale(2.5);
       transform-origin:center center;
       margin:120px 70px;
     }
@@ -977,7 +977,28 @@
     }
 
 
-  </style>
+  
+    .contact-grid{display:grid;grid-template-columns:1.05fr 1.15fr;gap:16px}
+    .contact-list{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;max-height:330px;overflow:auto}
+    .contact-row{display:grid;grid-template-columns:90px 130px 1fr;gap:10px;padding:10px 12px;border-bottom:1px solid #eef2f6;font-size:13px;cursor:pointer;align-items:center}
+    .contact-row:last-child{border-bottom:none}
+    .contact-row:hover{background:#f7fbff}
+    .contact-row.active{background:#eaf3ff;box-shadow:inset 3px 0 0 var(--blue)}
+    .contact-head{font-size:11px;font-weight:800;text-transform:uppercase;color:#6c7788;background:#f8fafc}
+    .contact-preview-static{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fbfcff,#f5f7fb);padding:16px;min-height:330px;display:flex;justify-content:center;align-items:center;overflow:auto}
+    .contact-label-wrap{width:100%;display:flex;justify-content:center;align-items:center}
+    .contact-label-preview{position:relative;width:min(100%,520px);aspect-ratio:25/13;background:#fff;border:4px solid #30343b;border-radius:18px;box-shadow:0 8px 24px rgba(16,27,48,.10);overflow:hidden}
+    .contact-box{position:absolute;border:1px solid #d9e4f2;border-radius:12px;background:#fff;color:#172033;display:flex;align-items:center;box-sizing:border-box}
+    .contact-code-box{left:4%;top:6%;width:30%;height:18%;justify-content:flex-start;padding:0 3%;font-size:22px;font-weight:800;letter-spacing:.4px}
+    .contact-contact-box{left:4%;right:4%;top:29%;height:22%;justify-content:center;padding:0 3%;font-size:38px;font-weight:900;letter-spacing:1px;color:#0b4bc4}
+    .contact-name-box{left:4%;right:4%;top:56%;bottom:6%;justify-content:center;text-align:center;font-size:29px;font-weight:900;line-height:1.05;padding:8px 12px;white-space:normal;overflow:hidden}
+    .contact-y-tools{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:#fff}
+    .contact-y-btn{width:24px;height:24px;border-radius:8px;border:1px solid #d6dbe5;background:#f5f7fb;font-weight:800;cursor:pointer}
+    .contact-textarea{min-height:124px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .contact-empty{color:#7a8495;font-size:13px}
+    .contact-action-grid{display:flex;gap:8px;flex-wrap:wrap}
+
+</style>
 </head>
 
 <body>
@@ -999,6 +1020,9 @@
       </button>
       <button class="nav-btn" data-section="vials">
         <span class="nav-ico">◫</span><span class="nav-label">Armados</span>
+      </button>
+      <button class="nav-btn" data-section="contacts">
+        <span class="nav-ico">☎</span><span class="nav-label">Contactos</span>
       </button>
       <button class="nav-btn" data-section="general">
         <span class="nav-ico">▤</span><span class="nav-label">Etiqueta General</span>
@@ -1261,7 +1285,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">Armados</div>
-              <div class="panel-sub">Código asignado → descripción → NSO opcional → formato NSO Triple</div>
+              <div class="panel-sub">Código asignado → descripción → NSO opcional → formato Etiqueta Normal</div>
             </div>
             <span class="badge b-blue">Módulo independiente</span>
           </div>
@@ -1281,9 +1305,9 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                   <div>
                     <strong>Vista previa Código / Armado</strong>
-                    <div class="vial-editor-note">Formato físico: NSO Triple / Múltiple · autoajuste activo</div>
+                    <div class="vial-editor-note">Formato físico: misma plantilla validada de Etiqueta Normal</div>
                   </div>
-                  <span class="badge b-purple">NSO Triple</span>
+                  <span class="badge b-green">Etiqueta Normal</span>
                 </div>
 
                 <div class="vial-preview-actions mt10">
@@ -1376,7 +1400,99 @@
                   <button class="btn btn-warning btn-sm" data-print-action="pause" data-printer-kind="bulk">⏸ Pausa</button>
                   <button class="btn btn-outline btn-sm" data-print-action="resume" data-printer-kind="bulk">▶ Seguir</button>
                   <button class="btn btn-danger btn-sm" data-print-action="cancel" data-printer-kind="bulk">⛔ Cancelar</button>
+                  <button class="btn btn-light btn-sm" id="vialTest4Btn">🧪 Prueba x4</button>
+                  <span class="contact-y-tools" id="vialPhysicalControls">
+                    <strong>Y:</strong>
+                    <span id="vialYValue">0</span>
+                    <button class="contact-y-btn" type="button" id="vialYUp" title="Subir todo el formato Armados 2 dots">↑</button>
+                    <button class="contact-y-btn" type="button" id="vialYDown" title="Bajar todo el formato Armados 2 dots">↓</button>
+                    <button class="contact-y-btn" type="button" id="vialYReset" title="Volver a la posición de Etiqueta Normal">0</button>
+                  </span>
                   <span class="print-control-state" data-print-state="bulk">✓ Lista</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ====================== CONTACTOS ====================== -->
+      <section id="contacts" class="section">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Contactos</div>
+              <div class="panel-sub">Pega código, contacto y nombre · formato basado en Etiqueta Normal sin código de barras</div>
+            </div>
+            <span class="badge b-blue">Módulo independiente</span>
+          </div>
+          <div class="panel-body">
+            <div class="contact-grid">
+              <div>
+                <label>Pegar contactos</label>
+                <textarea class="field contact-textarea" id="contactsPaste" placeholder="codigo	contacto	nombre
+1825260	0991333450	Angel Mauricio Aguilera Flores"></textarea>
+                <div class="contact-action-grid mt10">
+                  <button class="btn btn-primary" id="contactsLoadBtn">Procesar contactos</button>
+                  <button class="btn btn-light" id="contactsClearBtn">Limpiar</button>
+                </div>
+                <div class="help mt10">Acepta tabla con encabezados o filas separadas por tabulación, | o comas.</div>
+
+                <div class="panel mt16" style="padding:0;box-shadow:none">
+                  <div class="panel-head" style="padding:12px 14px">
+                    <div class="panel-title" style="font-size:16px">Lista de contactos</div>
+                    <span class="badge b-gray" id="contactsCountBadge">0 registros</span>
+                  </div>
+                  <div class="contact-list" id="contactsListWrap">
+                    <div class="contact-row contact-head"><div>Código</div><div>Contacto</div><div>Nombre</div></div>
+                    <div class="contact-empty" style="padding:14px" id="contactsEmptyHint">Pega una lista y pulsa <strong>Procesar contactos</strong>.</div>
+                    <div id="contactsRows"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="preview-wrap">
+                  <div class="preview-area">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                      <div>
+                        <strong>Vista previa Contactos</strong>
+                        <div class="vial-editor-note">Formato físico: Etiqueta Normal · lectura horizontal sobre el lado largo · sin código de barras</div>
+                      </div>
+                      <span class="badge b-green">Contacto</span>
+                    </div>
+                    <div id="contactPreviewStatic" class="contact-preview-static">
+                      <div class="contact-empty">Pega contactos y selecciona uno para visualizarlo.</div>
+                    </div>
+                  </div>
+
+                  <div class="printer-box">
+                    <strong>Datos del contacto</strong>
+                    <div class="mt12" id="contactInfo" style="font-size:13px;color:var(--muted)">Sin contacto seleccionado.</div>
+                    <div class="mt12">
+                      <label>Cantidad</label>
+                      <input class="field" type="number" id="contactQty" value="1" min="1">
+                    </div>
+                    <div class="contact-action-grid mt12">
+                      <button class="btn btn-success" id="printContactBtn">🖨 Imprimir contacto</button>
+                      <button class="btn btn-outline" id="printContactsBatchBtn">🖨 Imprimir lote</button>
+                    </div>
+                    <div class="print-control-row compact mt10">
+                      <button class="btn btn-warning btn-sm" data-print-action="pause" data-printer-kind="bulk">⏸ Pausa</button>
+                      <button class="btn btn-outline btn-sm" data-print-action="resume" data-printer-kind="bulk">▶ Seguir</button>
+                      <button class="btn btn-danger btn-sm" data-print-action="cancel" data-printer-kind="bulk">⛔ Cancelar</button>
+                      <button class="btn btn-light btn-sm" id="contactTest4Btn">🧪 Prueba x4</button>
+                      <span class="contact-y-tools" id="contactsPhysicalControls">
+                        <strong>Y:</strong>
+                        <span id="contactYValue">0</span>
+                        <button class="contact-y-btn" type="button" id="contactYUp" title="Subir el formato Contactos 2 dots">↑</button>
+                        <button class="contact-y-btn" type="button" id="contactYDown" title="Bajar el formato Contactos 2 dots">↓</button>
+                        <button class="contact-y-btn" type="button" id="contactYReset" title="Volver a posición original">0</button>
+                      </span>
+                      <span class="print-control-state" data-print-state="bulk">✓ Lista</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1408,7 +1524,7 @@
                   <div><label>Fecha de caducidad</label><input class="field" id="generalExpiry" placeholder="0129"></div>
                   <div><label>Fecha de elaboración</label><input class="field" id="generalManufacture" placeholder="28/09/2026"></div>
                   <div><label>Cantidad a imprimir</label><input class="field" type="number" id="generalQty" value="1" min="1"><div class="help">Solo define cuántas etiquetas se imprimen; no aparece dentro de la etiqueta.</div></div>
-                  <div class="general-names-row"><label>Nombres para control / visto</label><input class="field" id="generalBoxNames" placeholder="Ej. Maria, Torema, W, Ar, Mi... separados por coma"><div class="help">Cada nombre tendrá su propio cuadro para que el colaborador marque un visto.</div></div>
+                  <div class="general-names-row"><label>Nombres para control / visto</label><input class="field" id="generalBoxNames" placeholder="Ej. Maria, Torema, W, Ar, Mi... separados por coma"><div class="help">Cada nombre tendrá su propio cuadro. Los nombres se guardan automáticamente y se recuperan al abrir otra versión.</div></div>
                 </div>
                 <div class="general-result-rule"><strong>Resultado:</strong> siempre 14 dígitos = <strong>Código (6)</strong> + <strong>Unidades/caja (4)</strong> + <strong>Caducidad (4)</strong>. Ej.: 46796 + 72 + 129 → <strong>04769600720129</strong>.</div>
                 <div class="general-actions-clean">
@@ -1972,6 +2088,7 @@
   const sectionTitles={
     batch:["Centro de impresión","Clasificación automática y cola de impresión"],
     vials:["Armados","Flujo independiente para armados"],
+    contacts:["Contactos","Etiquetas de contacto basadas en Etiqueta Normal"],
     general:["Etiqueta General","Etiqueta final de control y caducidad"],
     config:["Configuración","Documentos, respaldo e impresoras"]
   };
@@ -2519,7 +2636,8 @@ const DEFAULT_DB = {
     },
     armados:{
       code:{size:25,weight:900,align:"left",lines:1,stretchX:1},
-      nso:{size:10,weight:800,align:"left",lines:3,stretchX:1},
+      desc:{size:14,weight:900,align:"left",lines:1,stretchX:1},
+      nso:{size:10,weight:700,align:"left",lines:1,stretchX:1},
       import:{size:7,weight:700,align:"left",lines:1,stretchX:1},
       barcode:{size:12,weight:400,align:"left",lines:1}
     }
@@ -2976,11 +3094,12 @@ function referenceLayouts(){
       code:{x:190,y:31,w:28,h:60,rotation:90}
     }},
     armados:{w:104,h:200,unit:"dot",mmW:13,mmH:25,orientation:"vertical",items:{
-      // Armados usa la misma geometría aprobada de NSO Triple / Múltiple.
-      code:{x:4,y:3,w:96,h:26,rotation:0},
-      barcode:{x:8,y:32,w:36,h:158,rotation:270},
-      nso:{x:47,y:32,w:40,h:158,rotation:270},
-      import:{x:89,y:32,w:11,h:156,rotation:270}
+      // Armados usa la geometría validada de Etiqueta Normal.
+      code:{x:12,y:3,w:82,h:19,rotation:0},
+      barcode:{x:13,y:29,w:51,h:163,rotation:270},
+      nso:{x:67,y:29,w:7,h:165,rotation:270},
+      desc:{x:78,y:29,w:9,h:165,rotation:270},
+      import:{x:88,y:29,w:9,h:164,rotation:270}
     }}
   };
 }
@@ -3039,11 +3158,15 @@ function ensureEditorSchema(){
     localStorage.setItem("bulkLabelStudioDB", JSON.stringify(db));
   }
 
-  // v77: Armados adopta intencionalmente el mismo formato de NSO Triple.
-  if(db.settings.armadosTripleFormatVersion!=="v77"){
+  // v88.12: Armados adopta intencionalmente el mismo formato de Etiqueta Normal.
+  if(db.settings.armadosNormalFormatVersion!=="v88.13"){
     db.templates.armados=structuredClone(DEFAULT_DB.templates.armados);
     db.templates.armados._layout=structuredClone(refs.armados);
-    db.settings.armadosTripleFormatVersion="v77";
+    db.settings.printYOffsetByType=db.settings.printYOffsetByType||{};
+    if(db.settings.printYOffsetByType.armados==null){
+      db.settings.printYOffsetByType.armados=Number(db.settings.printYOffsetByType.normal||db.settings.normalPrintYOffset||0);
+    }
+    db.settings.armadosNormalFormatVersion="v88.13";
     localStorage.setItem("bulkLabelStudioDB", JSON.stringify(db));
   }
 }
@@ -3259,11 +3382,11 @@ function bulkDisplayModel(p,type){
 
   return {
     code:p?.code||"",
-    desc:(type==="triple"||type==="armados") ? "" : effectiveCategory(p),
+    desc:type==="triple" ? "" : (type==="armados" ? String(p?.description||p?.category||"").trim() : effectiveCategory(p)),
     content:(type==="ancha" || type==="larga") ? cleanContainsText(p?.longText||"") : "",
     nsos,
     nso:nsos.join("  "),
-    import:type==="normal"
+    import:(type==="normal"||type==="armados")
       ? "IMPORTADO POR ORIFLAME DEL ECUADOR S.A."
       : ((type==="larga"||type==="ancha") ? "IMP POR ORIFLAME S.A." : (db.settings.importador||""))
   };
@@ -3337,6 +3460,7 @@ const typeInfo = {
   larga:{label:"Etiqueta Larga",badge:"b-blue",class:"larga"},
   triple:{label:"NSO Triple / Múltiple",badge:"b-purple",class:"triple"},
   ancha:{label:"Etiqueta Ancha",badge:"b-orange",class:"ancha"},
+  contacts:{label:"Contactos",badge:"b-blue",class:"contacts"},
   review:{label:"Revisión",badge:"b-red",class:"review"}
 };
 
@@ -3861,15 +3985,9 @@ function compactRuntimeLayout(baseLayout,type,text,product){
       }
     }
   }else if(type==="armados"){
-    // Si no hay NSO horizontal, el barcode aprovecha ese alto libre.
-    if(it.barcode && !has.nso){
-      const oldBottom=it.barcode.y+it.barcode.h;
-      it.barcode.y=61;
-      it.barcode.h=Math.max(it.barcode.h,oldBottom-it.barcode.y);
-    }
-    // Descripción e importador son columnas verticales. El barcode absorbe el espacio libre.
+    // Armados replica Etiqueta Normal: NSO, descripción e importador conservan las mismas columnas.
     if(it.barcode){
-      const order=["desc","import"].filter(key=>it[key]&&has[key]);
+      const order=["nso","desc","import"].filter(key=>it[key]&&has[key]);
       const gap=2, rightMargin=8;
       const fieldsW=order.reduce((s,key)=>s+it[key].w,0)+Math.max(0,order.length-1)*gap;
       const startX=it.barcode.x;
@@ -3933,7 +4051,7 @@ function renderLayoutLabel(product,type){
     if(k==="nso" && !String(text.nso||"").trim()) return "";
     if(k==="content" && !String(text.content||"").trim()) return "";
     if(k==="import" && !String(text.import||"").trim()) return "";
-    if((type==="triple"||type==="armados") && k==="nso"){
+    if(type==="triple" && k==="nso"){
       const p=tpl.nso||{size:12,weight:400,align:"left",lines:1};
       return `<div class="layout-item" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">${tripleNsoSegmentsHTML(text.nsos,L,p,"label")}</div>`;
     }
@@ -4774,6 +4892,7 @@ const ZEBRA_MEDIA_MM={
   normal:{w:13,h:25,rotateCanvas:false,orientation:"vertical",label:"Normal 13×25 mm · Vertical"},
   triple:{w:13,h:25,rotateCanvas:false,orientation:"vertical",label:"NSO Triple 13×25 mm · Vertical"},
   armados:{w:13,h:25,rotateCanvas:false,orientation:"vertical",label:"Armados 13×25 mm · Vertical"},
+  contacts:{w:13,h:25,rotateCanvas:false,orientation:"vertical",label:"Contactos 13×25 mm · Vertical"},
   larga:{w:32,h:13,rotateCanvas:false,orientation:"horizontal",label:"Larga 32×13 mm · Horizontal"},
   ancha:{w:32,h:20,rotateCanvas:false,orientation:"horizontal",label:"Ancha 32×20 mm · Horizontal"},
   general:{w:101,h:74,printW:799,printH:607,rotateCanvas:false,orientation:"horizontal",label:"General 101×74 mm · Horizontal · PRN 799×607"}
@@ -5337,7 +5456,7 @@ function renderBulkLogicalCanvas(product,type,opts={}){
   if(layout.items.desc && text.desc) drawCanvasTextBlock(ctx,layout.items.desc,tpl.desc||{},text.desc,{key:'desc'});
   if(layout.items.content && text.content) drawCanvasTextBlock(ctx,layout.items.content,tpl.content||{},`CONTIENE: ${text.content}`,{key:'content'});
 
-  if((type==='triple'||type==='armados') && layout.items.nso){
+  if(type==='triple' && layout.items.nso){
     drawTripleNsoCanvas(ctx,layout.items.nso,tpl.nso||{},text.nsos);
   }else if(layout.items.nso && text.nso){
     drawCanvasTextBlock(ctx,layout.items.nso,tpl.nso||{},text.nso,{key:'nso'});
@@ -5669,7 +5788,7 @@ function labelPrintYOffsetLabel(type){
   return v===0?"0":v>0?`↑${v}`:`↓${Math.abs(v)}`;
 }
 function setLabelPrintYOffset(type,v){
-  if(!["normal","larga","triple","ancha"].includes(type))return;
+  if(!["normal","larga","triple","ancha","armados","contactos"].includes(type))return;
   db.settings=db.settings||{};
   db.settings.printYOffsetByType=db.settings.printYOffsetByType||{};
   db.settings.printYOffsetByType[type]=Math.max(-20,Math.min(20,Math.round(Number(v)||0)));
@@ -5685,14 +5804,15 @@ function verticalPrnPagePrefix(labelTop=0){
   // Fuerza el estado físico en cada página. Evita heredar ^PO/^PM/^LH de trabajos anteriores.
   return `^XA^MMT^PW470^LL208^LS0^LT${Math.round(labelTop)}^PON^PMN^LH0,0^FWN^CI27`;
 }
-function buildNormalExactZDesignerPage(products){
+function buildNormalExactZDesignerPage(products,offsetType="normal"){
   // PRN aprobado intacto. Únicamente se aplica Label Top global al bloque completo.
-  let z=verticalPrnPagePrefix(-labelPrintYOffset("normal"));
+  let z=verticalPrnPagePrefix(-labelPrintYOffset(offsetType));
   const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
     const b=col*120, code=String(p?.code||"").trim();
-    const desc=effectiveCategory(p), nso=(p?.nsos||[]).filter(Boolean)[0]||"";
+    const desc=offsetType==="armados" ? String(p?.description||p?.category||"").trim() : effectiveCategory(p);
+    const nso=(p?.nsos||[]).filter(Boolean)[0]||"";
     z+=zplFieldTextFT(b+96,193,importer,"B",8,8);
     z+=zplFieldTextFT(b+12,21,code,"N",17,28);
     z+=zplFieldTextFT(b+86,194,desc,"B",8,15);
@@ -5882,28 +6002,12 @@ function exactArmadoCodeWidth(code){
   return n<=5?28:n===6?17:n===7?15:13;
 }
 function buildArmadoExactNormalPage(products){
-  // v77: Armados imprime con el mismo formato físico de NSO Triple / Múltiple.
-  let z=verticalPrnPagePrefix();
-  const importer="IMP POR ORIFLAME S.A.";
-  const nsoX=[58,71,82];
-
-  products.slice(0,4).forEach((p,col)=>{
-    if(p?.__separatorBlank)return;
-    const b=col*120;
-    const code=String(p?.code||"").trim();
-    const lines=(p?.nsos||[]).filter(Boolean).slice(0,3);
-
-    z+=zplFieldTextFT(b+96,188,importer,"B",12,8);
-    z+=zplFieldTextFT(b+9,20,code,"N",20,25);
-    lines.forEach((n,i)=>z+=zplFieldTextFT(b+nsoX[i],190,n,"B",8,20));
-    if(code)z+=`^BY2,3,36^FT${b+44},190^BCB,,N,N^FH\\^FD${zdesignerCode128Payload(code)}^FS`;
-  });
-
-  return z+="^PQ1,0,1,Y^XZ";
+  // Armados comparte EXACTAMENTE la geometría física de Etiqueta Normal.
+  return buildNormalExactZDesignerPage(products,"armados");
 }
 
 function nativeBarcodeSettings(type,code){
-  const heights={normal:51,triple:36,larga:41,ancha:39,armados:36};
+  const heights={normal:51,triple:36,larga:41,ancha:39,armados:51};
   return {symbology:"CODE128",module:2,ratio:3.0,height:heights[type]||36,mode:"A"};
 }
 function nativeBarcodeModule(type,code){
@@ -6105,11 +6209,10 @@ function buildArmadoProduct(v){
     .filter(Boolean);
   return {
     code:v?.code||"",
-    description:"",
+    description:desc,
     nrCategory:"",
-    category:"",
-    // Mismo formato Triple: descripción del armado + NSO(s) como líneas verticales.
-    nsos:[desc,...nsos].filter(Boolean),
+    category:desc,
+    nsos:nsos,
     longText:""
   };
 }
@@ -6418,15 +6521,16 @@ function vialEditorZoomValue(){
 function vialEditorKeys(){
   const layout=db.templates.armados?._layout;
   if(!layout)return [];
-  return ["code","nso","import","barcode"].filter(k=>layout.items?.[k]);
+  return ["code","barcode","nso","desc","import"].filter(k=>layout.items?.[k]);
 }
 
 function vialEditorLabel(k){
   return ({
     code:"Código",
-    nso:"Descripción / NSO",
-    import:"Importador",
-    barcode:"Código de barras"
+    barcode:"Código de barras",
+    nso:"NSO",
+    desc:"Descripción",
+    import:"Importador"
   })[k]||k;
 }
 
@@ -6508,14 +6612,6 @@ function vialEditorItemHTML(product,k,L,idx){
       <div class="group-edit-inner barcode-inner" style="${inner}">
         <img src="${src}" alt="Barcode" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">
       </div>
-      ${groupEditorResizeHandles()}
-    </div>`;
-  }
-
-  if(k==="nso"){
-    const p={...(tpl.nso||{}),size:armadoAutoFitSize(product)};
-    return `<div class="group-edit-item${selected}" data-k="${k}" style="left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.h}px">
-      ${tripleNsoSegmentsHTML(product.nsos||[],L,p,"label")}
       ${groupEditorResizeHandles()}
     </div>`;
   }
@@ -6715,7 +6811,7 @@ function renderVialStaticPreview(){
     return;
   }
 
-  host.innerHTML=renderLayoutLabel(product,"armados");
+  host.innerHTML=renderLayoutLabel(product,"normal");
 }
 
 function renderVialPreview(){
@@ -6742,32 +6838,27 @@ document.getElementById("vialAutoFit")?.addEventListener("click",()=>{
   const product=currentArmadoProduct();
   if(!product)return;
 
-  // Volvemos a la geometría segura de Triple y dejamos un tamaño máximo.
-  // Luego cada armado reduce automáticamente el texto si lo necesita.
-  db.templates.armados._layout=structuredClone(referenceLayouts().armados);
-  const base=DEFAULT_DB.templates.armados;
-  for(const key of ["code","nso","import","barcode"]){
-    if(base?.[key])db.templates.armados[key]=structuredClone(base[key]);
-  }
-  db.templates.armados.nso.size=Math.max(5,armadoAutoFitSize(product));
-  vialEditorSelected="nso";
+  // Igualamos Armados a la plantilla visual actual de Normal.
+  db.templates.armados=structuredClone(db.templates.normal);
+  db.templates.armados._layout=structuredClone(referenceLayouts().normal);
+  vialEditorSelected="desc";
   saveDB();
   try{bulkRasterCache.clear()}catch(_){}
   renderVialPreview();
-  toast(`Armado autoajustado · texto ${db.templates.armados.nso.size} dots`);
+  toast("Armado autoajustado · Etiqueta Normal");
 });
 
 document.getElementById("vialResetTemplate")?.addEventListener("click",()=>{
   if(!currentArmado)return;
-  if(!confirm("¿Restaurar Armados al formato NSO Triple?"))return;
+  if(!confirm("¿Restaurar Armados al formato Etiqueta Normal?"))return;
 
-  db.templates.armados=structuredClone(DEFAULT_DB.templates.armados);
-  db.templates.armados._layout=structuredClone(referenceLayouts().armados);
+  db.templates.armados=structuredClone(db.templates.normal);
+  db.templates.armados._layout=structuredClone(referenceLayouts().normal);
   saveDB();
   try{bulkRasterCache.clear()}catch(_){}
   vialEditorSelected="code";
   renderVialPreview();
-  toast("Formato Armados restaurado");
+  toast("Formato Armados restaurado · Etiqueta Normal");
 });
 
 function searchArmado(){
@@ -6829,13 +6920,174 @@ document.getElementById("printVialBtn")?.addEventListener("click",async()=>{
   try{
     const qty=Math.max(1,parseInt(document.getElementById("vialQty")?.value||"1",10)||1);
     const p=buildArmadoProduct(currentArmado);
-    const zpl=await buildArmadoEditorZPL(p,qty);
-    await sendZplWithCheck("bulk",zpl,qty,`IMPRIMIR CÓDIGO / ARMADO ${currentArmado.code||""}`);
+    const packed=await buildFourUpGroupZPL([{product:p,qty}],"armados");
+    await sendZplWithCheck("bulk",packed.zpl,qty,`IMPRIMIR CÓDIGO / ARMADO ${currentArmado.code||""}`);
   }catch(e){
     console.error(e);
     toast(e.message);
   }
 });
+
+function updateVialPhysicalControls(){
+  const v=document.getElementById("vialYValue");
+  if(v)v.textContent=labelPrintYOffsetLabel("armados");
+}
+document.getElementById("vialTest4Btn")?.addEventListener("click",async()=>{
+  if(!currentArmado)return toast("Primero busca un Código / Armado");
+  try{
+    const p=buildArmadoProduct(currentArmado);
+    const packed=await buildFourUpGroupZPL([{product:p,qty:4}],"armados");
+    await sendZplWithCheck("bulk",packed.zpl,4,`PRUEBA x4 ARMADO ${currentArmado.code||""}`);
+  }catch(e){console.error(e);toast(e.message||e);}
+});
+document.getElementById("vialYUp")?.addEventListener("click",()=>{setLabelPrintYOffset("armados",labelPrintYOffset("armados")+2);updateVialPhysicalControls();});
+document.getElementById("vialYDown")?.addEventListener("click",()=>{setLabelPrintYOffset("armados",labelPrintYOffset("armados")-2);updateVialPhysicalControls();});
+document.getElementById("vialYReset")?.addEventListener("click",()=>{setLabelPrintYOffset("armados",Number(labelPrintYOffset("normal")||0));updateVialPhysicalControls();toast("Armados volvió a la posición Y de Etiqueta Normal");});
+updateVialPhysicalControls();
+
+
+
+/* ---------- Contactos ---------- */
+let contactsRecords=[];
+let currentContactIndex=0;
+
+function normalizeContactCode(v){return String(v??"").trim();}
+function cleanContactName(v){return String(v??"").replace(/\s+/g," ").trim();}
+function parseContactsText(raw){
+  const lines=String(raw||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const rows=[];
+  lines.forEach((line,idx)=>{
+    if(/^\|?\s*-[-|\s]*$/.test(line))return;
+    let parts=[];
+    if(line.includes("|")) parts=line.split("|").map(x=>x.trim()).filter(Boolean);
+    else if(line.includes("\t")) parts=line.split("\t").map(x=>x.trim());
+    else parts=line.split(",").map(x=>x.trim());
+    if(parts.length<3)return;
+    const h0=(parts[0]||"").toLowerCase(),h1=(parts[1]||"").toLowerCase(),h2=(parts[2]||"").toLowerCase();
+    if((/codigo|código/.test(h0)) && /contact/.test(h1) && /nombre/.test(h2)) return;
+    const code=normalizeContactCode(parts[0]);
+    const contact=String(parts[1]||"").trim();
+    const name=cleanContactName(parts.slice(2).join(" "));
+    if(!code && !contact && !name)return;
+    rows.push({id:`ct-${idx}-${code}`,code,contact,name,qty:1});
+  });
+  return rows;
+}
+function contactNameLines(name,max=3){
+  const words=cleanContactName(name).split(/\s+/).filter(Boolean);
+  if(!words.length)return [""];
+  const lines=[]; let current="";
+  const width=23;
+  for(const w of words){
+    const next=current?`${current} ${w}`:w;
+    if(next.length<=width || !current) current=next;
+    else { lines.push(current); current=w; if(lines.length===max-1) break; }
+  }
+  if(current) lines.push(current);
+  const rest=words.slice(lines.join(" ").split(/\s+/).filter(Boolean).length).join(" ").trim();
+  if(rest){ lines[lines.length-1]=`${lines[lines.length-1]} ${rest}`.trim(); }
+  return lines.slice(0,max);
+}
+function renderContactPreview(){
+  const host=document.getElementById("contactPreviewStatic");
+  const info=document.getElementById("contactInfo");
+  const badge=document.getElementById("contactsCountBadge");
+  const current=contactsRecords[currentContactIndex]||null;
+  if(badge) badge.textContent=`${contactsRecords.length} registro${contactsRecords.length===1?"":"s"}`;
+  if(!host || !info) return;
+  if(!current){
+    host.innerHTML='<div class="contact-empty">Pega contactos y selecciona uno para visualizarlo.</div>';
+    info.innerHTML='Sin contacto seleccionado.';
+    return;
+  }
+  const nameLines=contactNameLines(current.name,4);
+  host.innerHTML=`<div class="contact-label-wrap"><div class="contact-label-preview"><div class="contact-box contact-code-box">${escapeHTML(current.code)}</div><div class="contact-box contact-contact-box">${escapeHTML(current.contact)}</div><div class="contact-box contact-name-box">${nameLines.map(x=>escapeHTML(x)).join("<br>")}</div></div></div>`;
+  info.innerHTML=`<strong>Código:</strong> ${escapeHTML(current.code)}<br><strong>Contacto:</strong> ${escapeHTML(current.contact)}<br><strong>Nombre:</strong> ${escapeHTML(current.name)}`;
+  const val=document.getElementById("contactYValue"); if(val) val.textContent=labelPrintYOffsetLabel("contactos");
+}
+function renderContactsRows(){
+  const wrap=document.getElementById("contactsRows");
+  const empty=document.getElementById("contactsEmptyHint");
+  if(!wrap) return;
+  if(empty) empty.style.display=contactsRecords.length?"none":"block";
+  wrap.innerHTML=contactsRecords.map((r,i)=>`<div class="contact-row ${i===currentContactIndex?"active":""}" data-contact-row="${i}"><div>${escapeHTML(r.code)}</div><div>${escapeHTML(r.contact)}</div><div>${escapeHTML(r.name)}</div></div>`).join("");
+  wrap.querySelectorAll('[data-contact-row]').forEach(el=>el.addEventListener('click',()=>{currentContactIndex=Number(el.dataset.contactRow)||0;renderContactsRows();renderContactPreview();}));
+}
+function loadContactsFromInput(){
+  contactsRecords=parseContactsText(document.getElementById("contactsPaste")?.value||"");
+  currentContactIndex=0;
+  renderContactsRows();
+  renderContactPreview();
+  if(contactsRecords.length) toast(`${contactsRecords.length} contacto(s) listos`); else toast('No se encontraron contactos válidos');
+}
+function clearContactsModule(){
+  contactsRecords=[]; currentContactIndex=0;
+  const p=document.getElementById("contactsPaste"); if(p)p.value="";
+  const q=document.getElementById("contactQty"); if(q) q.value="1";
+  renderContactsRows(); renderContactPreview();
+}
+function buildContactRecord(raw){
+  return {code:String(raw?.code||"").trim(), contact:String(raw?.contact||"").trim(), name:cleanContactName(raw?.name||"")};
+}
+function buildContactsExactPage(records){
+  // Etiqueta 13×25 mm: el contenido se imprime girado para aprovechar los 25 mm del lado largo.
+  let z=verticalPrnPagePrefix(-labelPrintYOffset("contactos"));
+  records.slice(0,4).forEach((r,col)=>{
+    if(r?.__separatorBlank)return;
+    const b=col*120;
+    const code=String(r?.code||"").trim();
+    const contact=String(r?.contact||"").trim();
+    const lines=contactNameLines(r?.name||"",3);
+
+    // Al girar físicamente la etiqueta, estas columnas se leen como filas horizontales.
+    z+=zplFieldTextFT(b+24,190,code,"B",9,14);
+    z+=zplFieldTextFT(b+49,190,contact,"B",14,20);
+
+    if(lines.length===1){
+      z+=zplFieldTextFT(b+83,190,lines[0],"B",13,17);
+    }else if(lines.length===2){
+      z+=zplFieldTextFT(b+75,190,lines[0],"B",11,15);
+      z+=zplFieldTextFT(b+92,190,lines[1],"B",11,15);
+    }else{
+      z+=zplFieldTextFT(b+68,190,lines[0],"B",9,13);
+      z+=zplFieldTextFT(b+82,190,lines[1],"B",9,13);
+      z+=zplFieldTextFT(b+96,190,lines[2],"B",9,13);
+    }
+  });
+  return z+="^PQ1,0,1,Y^XZ";
+}
+async function buildContactsSingleZPL(record,qty){
+  const n=Math.max(1,parseInt(qty||1,10)||1);
+  let z="",row=[];
+  const flush=()=>{ if(row.length){ z+=buildContactsExactPage(row); row=[]; } };
+  for(let i=0;i<n;i++){ row.push(record); if(row.length===4) flush(); }
+  flush();
+  return z;
+}
+async function buildContactsBatchZPL(records){
+  let z="",row=[];
+  const flush=()=>{ if(row.length){ z+=buildContactsExactPage(row); row=[]; } };
+  records.forEach(r=>{ row.push(r); if(row.length===4) flush(); });
+  flush();
+  return z;
+}
+document.getElementById("contactsLoadBtn")?.addEventListener("click",loadContactsFromInput);
+document.getElementById("contactsClearBtn")?.addEventListener("click",clearContactsModule);
+document.getElementById("contactTest4Btn")?.addEventListener("click",async()=>{
+  const current=contactsRecords[currentContactIndex]; if(!current) return toast('Primero carga y selecciona un contacto');
+  try{ const zpl=await buildContactsSingleZPL(buildContactRecord(current),4); await sendZplWithCheck('bulk',zpl,4,`PRUEBA x4 CONTACTOS ${current.code||''}`); }catch(e){ console.error(e); toast(e.message||e); }
+});
+document.getElementById("printContactBtn")?.addEventListener("click",async()=>{
+  const current=contactsRecords[currentContactIndex]; if(!current) return toast('Primero carga y selecciona un contacto');
+  try{ const qty=Math.max(1,parseInt(document.getElementById('contactQty')?.value||'1',10)||1); const zpl=await buildContactsSingleZPL(buildContactRecord(current),qty); await sendZplWithCheck('bulk',zpl,qty,`IMPRIMIR CONTACTO ${current.code||''}`); }catch(e){ console.error(e); toast(e.message||e); }
+});
+document.getElementById("printContactsBatchBtn")?.addEventListener("click",async()=>{
+  if(!contactsRecords.length) return toast('Primero carga contactos');
+  try{ const zpl=await buildContactsBatchZPL(contactsRecords.map(buildContactRecord)); await sendZplWithCheck('bulk',zpl,contactsRecords.length,`IMPRIMIR LOTE CONTACTOS`); }catch(e){ console.error(e); toast(e.message||e); }
+});
+document.getElementById("contactYUp")?.addEventListener("click",()=>{setLabelPrintYOffset('contactos',labelPrintYOffset('contactos')+2); renderContactPreview();});
+document.getElementById("contactYDown")?.addEventListener("click",()=>{setLabelPrintYOffset('contactos',labelPrintYOffset('contactos')-2); renderContactPreview();});
+document.getElementById("contactYReset")?.addEventListener("click",()=>{setLabelPrintYOffset('contactos',0); renderContactPreview();});
 
 /* ---------- General: normalización fija 6 + 4 + 4 ---------- */
 function onlyDigits(value){ return String(value??"").replace(/\D/g,""); }
@@ -7161,10 +7413,33 @@ document.getElementById('resetGeneralLayout').addEventListener('click',()=>{
   {const T=db.settings.generalTemplate,sx=799/T.w,sy=607/T.h,fs=Math.min(sx,sy);for(const L of Object.values(T.items||{})){L.x*=sx;L.y*=sy;L.w*=sx;L.h*=sy;}for(const s of Object.values(T.styles||{}))if(s?.size)s.size=Math.max(6,Math.round(s.size*fs));T.w=799;T.h=607;}
   db.settings.generalFineEditorVersion="general-v62-native-editable-titles";db.settings.generalPrnGeometryVersion="general-prn-v58-799x607";saveDB();renderGeneral();renderGeneralEditor();toast('Diseño General restaurado');
 });
-if(document.getElementById("generalBoxNames")) document.getElementById("generalBoxNames").value=(db.settings.generalBoxNames||[]).join(", ");
+function syncGeneralSavedNamesField(){
+  const el=document.getElementById("generalBoxNames");
+  if(el)el.value=(db.settings.generalBoxNames||[]).join(", ");
+}
+let generalNamesCloudTimer=0;
+function persistGeneralNamesFromField(forceCloud=false){
+  const el=document.getElementById("generalBoxNames");
+  if(!el)return;
+  db.settings.generalBoxNames=el.value.split(",").map(x=>x.trim()).filter(Boolean);
+  saveDB();
+  clearTimeout(generalNamesCloudTimer);
+  generalNamesCloudTimer=setTimeout(async()=>{
+    if(!window.FirebaseBridge?.ready)return;
+    try{
+      await firebaseSyncDirtyState(true);
+      if(forceCloud)toast("Nombres de Etiqueta General guardados");
+    }catch(err){console.error("Guardar nombres General",err);}
+  },forceCloud?40:700);
+}
+syncGeneralSavedNamesField();
 ["generalCode","generalDesc","generalUnits","generalExpiry","generalManufacture","generalQty","generalBoxNames"].forEach(id=>{
   const el=document.getElementById(id);if(!el)return;
-  el.addEventListener("input",()=>{if(id==="generalBoxNames"){db.settings.generalBoxNames=el.value.split(",").map(x=>x.trim()).filter(Boolean);saveDB()}renderGeneral()});
+  el.addEventListener("input",()=>{if(id==="generalBoxNames")persistGeneralNamesFromField(false);renderGeneral()});
+  if(id==="generalBoxNames"){
+    el.addEventListener("change",()=>persistGeneralNamesFromField(true));
+    el.addEventListener("blur",()=>persistGeneralNamesFromField(true));
+  }
   if(["generalCode","generalUnits","generalExpiry"].includes(id)){
     el.addEventListener("blur",()=>{normalizeGeneralInputs();autofillGeneralFromCode();renderGeneral()});
     el.addEventListener("change",()=>{normalizeGeneralInputs();autofillGeneralFromCode();renderGeneral()});
@@ -8741,6 +9016,7 @@ function firebaseApplySharedState(state){
   if(state.templates)db.templates=state.templates;
   if(state.importMeta)db.importMeta=state.importMeta;
   ensureEditorSchema();
+  try{syncGeneralSavedNamesField?.();renderGeneral?.();}catch(_){}
 }
 function stableHash(v){
   try{return JSON.stringify(v);}catch(_){return String(v);}
