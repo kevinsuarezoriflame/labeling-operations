@@ -989,9 +989,9 @@
     .contact-label-wrap{width:100%;display:flex;justify-content:center;align-items:center}
     .contact-label-preview{position:relative;width:min(100%,520px);aspect-ratio:25/13;background:#fff;border:4px solid #30343b;border-radius:18px;box-shadow:0 8px 24px rgba(16,27,48,.10);overflow:hidden}
     .contact-box{position:absolute;border:1px solid #d9e4f2;border-radius:12px;background:#fff;color:#172033;display:flex;align-items:center;box-sizing:border-box}
-    .contact-code-box{left:4%;top:6%;width:30%;height:18%;justify-content:flex-start;padding:0 3%;font-size:22px;font-weight:800;letter-spacing:.4px}
-    .contact-contact-box{left:4%;right:4%;top:29%;height:22%;justify-content:center;padding:0 3%;font-size:38px;font-weight:900;letter-spacing:1px;color:#0b4bc4}
-    .contact-name-box{left:4%;right:4%;top:56%;bottom:6%;justify-content:center;text-align:center;font-size:29px;font-weight:900;line-height:1.05;padding:8px 12px;white-space:normal;overflow:hidden}
+    .contact-code-box{left:4%;top:6%;width:30%;height:18%;justify-content:flex-start;padding:0 3%;font-size:24px;font-weight:800;letter-spacing:.4px}
+    .contact-contact-box{left:4%;right:4%;top:29%;height:22%;justify-content:center;padding:0 3%;font-size:40px;font-weight:900;letter-spacing:1px;color:#0b4bc4}
+    .contact-name-box{left:4%;right:4%;top:56%;bottom:6%;justify-content:center;text-align:center;font-size:31px;font-weight:900;line-height:1.05;padding:8px 12px;white-space:normal;overflow:hidden}
     .contact-y-tools{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:#fff}
     .contact-y-btn{width:24px;height:24px;border-radius:8px;border:1px solid #d6dbe5;background:#f5f7fb;font-weight:800;cursor:pointer}
     .contact-textarea{min-height:124px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
@@ -3386,9 +3386,11 @@ function bulkDisplayModel(p,type){
     content:(type==="ancha" || type==="larga") ? cleanContainsText(p?.longText||"") : "",
     nsos,
     nso:nsos.join("  "),
-    import:(type==="normal"||type==="armados")
-      ? "IMPORTADO POR ORIFLAME DEL ECUADOR S.A."
-      : ((type==="larga"||type==="ancha") ? "IMP POR ORIFLAME S.A." : (db.settings.importador||""))
+    import:type==="armados"
+      ? "Imp por Oriflame Ec"
+      : (type==="normal"
+        ? "IMPORTADO POR ORIFLAME DEL ECUADOR S.A."
+        : ((type==="larga"||type==="ancha") ? "IMP POR ORIFLAME S.A." : (db.settings.importador||"")))
   };
 }
 
@@ -5807,7 +5809,7 @@ function verticalPrnPagePrefix(labelTop=0){
 function buildNormalExactZDesignerPage(products,offsetType="normal"){
   // PRN aprobado intacto. Únicamente se aplica Label Top global al bloque completo.
   let z=verticalPrnPagePrefix(-labelPrintYOffset(offsetType));
-  const importer="IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
+  const importer=offsetType==="armados" ? "Imp por Oriflame Ec" : "IMPORTADO POR ORIFLAME DEL ECUADOR S.A.";
   products.slice(0,4).forEach((p,col)=>{
     if(p?.__separatorBlank)return;
     const b=col*120, code=String(p?.code||"").trim();
@@ -7040,18 +7042,22 @@ function buildContactsExactPage(records){
     const lines=contactNameLines(r?.name||"",3);
 
     // Al girar físicamente la etiqueta, estas columnas se leen como filas horizontales.
-    z+=zplFieldTextFT(b+24,190,code,"B",9,14);
-    z+=zplFieldTextFT(b+49,190,contact,"B",14,20);
+    z+=zplFieldTextFT(b+24,190,code,"B",10,15);
+    z+=zplFieldTextFT(b+49,190,contact,"B",15,21);
 
+    const boldName=(x,y,text,h,w)=>{
+      z+=zplFieldTextFT(x,y,text,"B",h,w);
+      z+=zplFieldTextFT(x+1,y,text,"B",h,w);
+    };
     if(lines.length===1){
-      z+=zplFieldTextFT(b+83,190,lines[0],"B",13,17);
+      boldName(b+83,190,lines[0],14,18);
     }else if(lines.length===2){
-      z+=zplFieldTextFT(b+75,190,lines[0],"B",11,15);
-      z+=zplFieldTextFT(b+92,190,lines[1],"B",11,15);
+      boldName(b+75,190,lines[0],12,16);
+      boldName(b+92,190,lines[1],12,16);
     }else{
-      z+=zplFieldTextFT(b+68,190,lines[0],"B",9,13);
-      z+=zplFieldTextFT(b+82,190,lines[1],"B",9,13);
-      z+=zplFieldTextFT(b+96,190,lines[2],"B",9,13);
+      boldName(b+68,190,lines[0],10,14);
+      boldName(b+82,190,lines[1],10,14);
+      boldName(b+96,190,lines[2],10,14);
     }
   });
   return z+="^PQ1,0,1,Y^XZ";
