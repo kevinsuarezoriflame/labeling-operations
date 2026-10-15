@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Labeling Operations v88.9 · Cola segura</title>
+  <title>Labeling Operations v88.17 · Denominación genérica</title>
   <meta name="description" content="Centro de control para clasificación, diseño e impresión de etiquetas Bulk." />
 
   <!-- Librerías opcionales. La app funciona sin ellas, excepto la importación Excel/barcode real. -->
@@ -1696,7 +1696,7 @@
                       </div>
 
                       <div>
-                        <label>Categoría regulatoria</label>
+                        <label>Denominación genérica</label>
                         <input class="field" id="mCategory">
                       </div>
 
@@ -7756,12 +7756,18 @@ document.getElementById("saveMaster").addEventListener("click",async()=>{
   const nsos=getManualNsos();
   const longText=document.getElementById("mLongText").value.trim();
 
+  // v88.17 · Edición manual sustitutiva:
+  // lo que aparece en el formulario pasa a ser el valor definitivo.
+  // Un campo vacío significa BORRAR el valor anterior, no conservarlo.
   const productRecord={
     ...prev,
     code,
-    description:desc || prev.description || "",
-    category:category || prev.category || "",
-    nrCategory:category || prev.nrCategory || "",
+    description:desc,
+    category:category,
+    nrCategory:category,
+    // Evita que una denominación antigua vuelva a aparecer por una fuente NSO oculta
+    // cuando el usuario decidió dejar la Denominación genérica vacía.
+    nsoCategory:category ? (prev.nsoCategory || "") : "",
     nsos,
     longText,
     manualType:"",
@@ -7771,10 +7777,14 @@ document.getElementById("saveMaster").addEventListener("click",async()=>{
 
   const writes=[{kind:"products",code,record:productRecord}];
   let generalRecord=null,gcode=normalizeGeneralCode(code);
-  if(desc && gcode){
-    const oldGeneral=generalProductRecord(code)||db.generalProducts?.[gcode]||{};
-    generalRecord={...oldGeneral,code:gcode,description:desc,unitsPerBox:oldGeneral.unitsPerBox||""};
-    writes.push({kind:"generalProducts",code:gcode,record:generalRecord});
+  if(gcode){
+    const oldGeneral=generalProductRecord(code)||db.generalProducts?.[gcode]||null;
+    // Si ya existía una descripción Orisales, un campo vacío también debe borrarla.
+    // Si nunca existió y sigue vacío, no creamos un registro General innecesario.
+    if(desc || oldGeneral){
+      generalRecord={...(oldGeneral||{}),code:gcode,description:desc,unitsPerBox:oldGeneral?.unitsPerBox||""};
+      writes.push({kind:"generalProducts",code:gcode,record:generalRecord});
+    }
   }
 
   const btn=document.getElementById("saveMaster");
@@ -8299,7 +8309,7 @@ function auditOneProduct(code){
     const clsType=cls.type;
     const validNsoOnly=(nsoCount===1 && clsType==="normal") || (nsoCount>=2 && nsoCount<=4 && clsType==="triple");
     if(!effectiveCategory(p) && !validNsoOnly && (String(p.longText||"").trim() || p.sourceType))
-      issues.push("Falta descripción/categoría regulatoria");
+      issues.push("Falta denominación genérica");
 
     const commercial=normalizeCompareText(general?.description || p.description || "");
     for(const key of ["nrCategory","nsoCategory"]){
@@ -8379,7 +8389,7 @@ function renderAuditDetail(result){
     rows.push(["Descripción regulatoria efectiva",auditEmpty(effectiveReg)]);
 
   if(auditHasValue(p?.category))
-    rows.push(["Categoría regulatoria",auditEmpty(p.category)]);
+    rows.push(["Denominación genérica",auditEmpty(p.category)]);
 
   if(auditHasValue(p?.nrCategory))
     rows.push(["Descripción NR",auditEmpty(p.nrCategory)]);
