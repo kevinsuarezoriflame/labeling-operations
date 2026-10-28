@@ -1524,7 +1524,7 @@
                   <div><label>Fecha de caducidad</label><input class="field" id="generalExpiry" placeholder="0129"></div>
                   <div><label>Fecha de elaboración</label><input class="field" id="generalManufacture" placeholder="28/09/2026"></div>
                   <div><label>Cantidad a imprimir</label><input class="field" type="number" id="generalQty" value="1" min="1"><div class="help">Solo define cuántas etiquetas se imprimen; no aparece dentro de la etiqueta.</div></div>
-                  <div class="general-names-row"><label>Nombres para control / visto</label><input class="field" id="generalBoxNames" placeholder="Ej. Maria, Torema, W, Ar, Mi... separados por coma"><div class="help">Cada nombre tendrá su propio cuadro. Los nombres se guardan automáticamente y se recuperan al abrir otra versión.</div></div>
+                  <div class="general-names-row"><label>Nombres para control / visto</label><input class="field" id="generalBoxNames" placeholder="Ej. Maria, Torema, W, Ar, Mi... separados por coma"><div class="help">Cada nombre tendrá su propio cuadro. Los nombres se guardan automáticamente y se recuperan al abrir otra versión.</div><div id="generalPreferencesStatus" role="status" aria-live="polite" style="margin-top:5px;font-size:11px;color:#64748b">Nombres y diseño: guardados localmente</div></div>
                 </div>
                 <div class="general-result-rule"><strong>Resultado:</strong> siempre 14 dígitos = <strong>Código (6)</strong> + <strong>Unidades/caja (4)</strong> + <strong>Caducidad (4)</strong>. Ej.: 46796 + 72 + 129 → <strong>04769600720129</strong>.</div>
                 <div class="general-actions-clean">
@@ -2380,6 +2380,31 @@
     return uploadManualRecords([{kind,code,record}]);
   }
 
+  // Preferencias independientes de la etiqueta General: no modifica app_config ni las impresoras.
+  async function uploadGeneralPreferences(preferences){
+    const payload={
+      generalBoxNames:preferences.generalBoxNames,
+      generalTemplate:preferences.generalTemplate,
+      generalTitles:preferences.generalTitles,
+      updatedAt:new Date().toISOString()
+    };
+    await batchWrites([writeDoc(SYSTEM_COLLECTION,"general_preferences",payload)]);
+    const confirmed=await getDocument(SYSTEM_COLLECTION,"general_preferences");
+    if(!confirmed)throw new Error("Firebase no confirmó la etiqueta General");
+    const remote=decodeFields(confirmed.fields||{});
+    const canonical=value=>JSON.stringify(value,(key,v)=>
+      v && typeof v==="object" && !Array.isArray(v)
+        ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]]))
+        : v
+    );
+    for(const field of ["generalBoxNames","generalTemplate","generalTitles"]){
+      if(canonical(remote[field])!==canonical(payload[field])){
+        throw new Error("Firebase no confirmó el campo General: "+field);
+      }
+    }
+    return true;
+  }
+
   async function uploadSharedState(sharedState){
     await batchWrites([
       writeDoc(SYSTEM_COLLECTION,"app_config",{
@@ -2472,15 +2497,22 @@
     for(const x of manualOverlays.vials)vials[x.code]=x.record;
     for(const x of manualOverlays.generalProducts)generalProducts[x.code]=x.record;
 
-    const cfgDoc=await getDocument(SYSTEM_COLLECTION,"app_config");
+    const [cfgDoc,generalPrefsDoc]=await Promise.all([
+      getDocument(SYSTEM_COLLECTION,"app_config"),
+      getDocument(SYSTEM_COLLECTION,"general_preferences").catch(err=>{
+        console.warn("Preferencias General no disponibles; se conserva la configuración actual",err);
+        return null;
+      })
+    ]);
     const sharedState=cfgDoc ? decodeFields(cfgDoc.fields||{}) : null;
+    const generalPreferences=generalPrefsDoc ? decodeFields(generalPrefsDoc.fields||{}) : null;
 
     if(sharedState){
       delete sharedState.updatedAt;
       delete sharedState.schemaVersion;
     }
 
-    return {products,vials,generalProducts,sharedState};
+    return {products,vials,generalProducts,sharedState,generalPreferences};
   }
 
   async function testConnection(){
@@ -2495,6 +2527,7 @@
     uploadAll,
     downloadAll,
     uploadSharedState,
+    uploadGeneralPreferences,
     uploadChangedBuckets,
     uploadManualRecords,
     uploadManualRecord,
@@ -7342,7 +7375,7 @@ function bindGeneralEditItem(el){
     document.querySelectorAll('.general-edit-item').forEach(x=>x.classList.toggle('selected',x===el)); loadGeneralProps();
     const T=db.settings.generalTemplate,L=T.items[key],sx=e.clientX,sy=e.clientY,ox=L.x,oy=L.y;
     const move=ev=>{L.x=Math.max(0,Math.min(T.w-L.w,ox+ev.clientX-sx));L.y=Math.max(0,Math.min(T.h-L.h,oy+ev.clientY-sy));el.style.left=L.x+'px';el.style.top=L.y+'px';};
-    const up=()=>{document.removeEventListener('pointermove',move);saveDB();renderGeneral();};
+    const up=()=>{document.removeEventListener('pointermove',move);markGeneralPreferencesChanged(true);renderGeneral();};
     document.addEventListener('pointermove',move,{passive:true});document.addEventListener('pointerup',up,{once:true});
   });
   el.querySelectorAll('.resize-handle').forEach(h=>h.addEventListener('pointerdown',e=>startGeneralResize(e,el,key,h.dataset.dir)));
@@ -7358,7 +7391,7 @@ function startGeneralResize(e,el,key,dir){
     if(T.styles[key]){T.styles[key].size=Math.max(6,Math.min(72,Math.round(orig.size*(h/orig.h))));T.styles[key].stretchX=Math.max(.5,Math.min(2.5,orig.stretch*(w/orig.w)));generalPropSize.value=T.styles[key].size;generalPropStretch.value=Math.round(T.styles[key].stretchX*100)}
     const data=generalData(); const temp=document.createElement('div'); temp.innerHTML=generalItemHTML(key,data,false); const fresh=temp.firstElementChild; if(fresh){el.innerHTML=fresh.innerHTML+resizeHandles();el.querySelectorAll('.resize-handle').forEach(h=>h.addEventListener('pointerdown',ev=>startGeneralResize(ev,el,key,h.dataset.dir)))}
   };
-  const up=()=>{document.removeEventListener('pointermove',move);saveDB();renderGeneral();};
+  const up=()=>{document.removeEventListener('pointermove',move);markGeneralPreferencesChanged(true);renderGeneral();};
   document.addEventListener('pointermove',move,{passive:true});document.addEventListener('pointerup',up,{once:true});
 }
 function loadGeneralProps(){
@@ -7383,7 +7416,7 @@ function loadGeneralProps(){
     generalPropUnderline.checked=false;generalPropInvert.checked=false;
   }
 }
-function liveGeneralProps(){
+function liveGeneralProps(event){
   const T=db.settings.generalTemplate,key=selectedGeneralElement,L=T.items[key],s=T.styles[key]; if(!L)return;
   L.rotation=+generalPropRotation.value||0;
 
@@ -7400,7 +7433,7 @@ function liveGeneralProps(){
     s.underline=!!generalPropUnderline.checked;
     s.invert=!!generalPropInvert.checked;
   }
-  saveDB();renderGeneralEditor();renderGeneral();
+  markGeneralPreferencesChanged(event?.type==="change");renderGeneralEditor();renderGeneral();
 }
 ['generalPropText','generalPropSize','generalPropStretch','generalPropWeight','generalPropAlign','generalPropRotation','generalPropUnderline','generalPropInvert'].forEach(id=>{
   const el=document.getElementById(id);
@@ -7417,26 +7450,97 @@ document.getElementById('resetGeneralLayout').addEventListener('click',()=>{
   db.settings.generalTemplate=structuredClone(DEFAULT_DB.settings.generalTemplate);
   db.settings.generalTitles=structuredClone(DEFAULT_DB.settings.generalTitles);
   {const T=db.settings.generalTemplate,sx=799/T.w,sy=607/T.h,fs=Math.min(sx,sy);for(const L of Object.values(T.items||{})){L.x*=sx;L.y*=sy;L.w*=sx;L.h*=sy;}for(const s of Object.values(T.styles||{}))if(s?.size)s.size=Math.max(6,Math.round(s.size*fs));T.w=799;T.h=607;}
-  db.settings.generalFineEditorVersion="general-v62-native-editable-titles";db.settings.generalPrnGeometryVersion="general-prn-v58-799x607";saveDB();renderGeneral();renderGeneralEditor();toast('Diseño General restaurado');
+  db.settings.generalFineEditorVersion="general-v62-native-editable-titles";db.settings.generalPrnGeometryVersion="general-prn-v58-799x607";markGeneralPreferencesChanged(true);renderGeneral();renderGeneralEditor();toast('Diseño General restaurado');
 });
 function syncGeneralSavedNamesField(){
   const el=document.getElementById("generalBoxNames");
   if(el)el.value=(db.settings.generalBoxNames||[]).join(", ");
 }
-let generalNamesCloudTimer=0;
+/* Preferencias exclusivas de Etiqueta General: nombres + diseño + textos del diseño.
+   Se conserva una copia pendiente local hasta que Firestore confirme la escritura. */
+const GENERAL_PREFERENCES_PENDING_KEY="labelingGeneralPreferencesPendingV1";
+let generalPreferencesTimer=0;
+let generalPreferencesSaving=false;
+function generalPreferencesSnapshot(){
+  return {
+    generalBoxNames:structuredClone(db.settings.generalBoxNames||[]),
+    generalTemplate:structuredClone(db.settings.generalTemplate),
+    generalTitles:structuredClone(db.settings.generalTitles||{})
+  };
+}
+function generalPreferencesPending(){
+  try{
+    const value=JSON.parse(localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY)||"null");
+    return value && Array.isArray(value.generalBoxNames) && value.generalTemplate?.items ? value : null;
+  }catch(_){return null;}
+}
+function generalPreferencesStatus(text,color="#64748b"){
+  const el=document.getElementById("generalPreferencesStatus");
+  if(el){el.textContent=text;el.style.color=color;}
+}
+function applyGeneralPreferencesSnapshot(preferences){
+  if(!preferences || !Array.isArray(preferences.generalBoxNames) || !preferences.generalTemplate?.items)return;
+  db.settings.generalBoxNames=structuredClone(preferences.generalBoxNames);
+  db.settings.generalTemplate=structuredClone(preferences.generalTemplate);
+  if(preferences.generalTitles)db.settings.generalTitles=structuredClone(preferences.generalTitles);
+  syncGeneralSavedNamesField();
+  renderGeneral();
+  renderGeneralBulkPreview?.();
+}
+function restoreGeneralPreferences(cloud){
+  // Una edición local aún pendiente nunca debe ser reemplazada por una descarga anterior.
+  const pending=generalPreferencesPending();
+  if(pending){
+    applyGeneralPreferencesSnapshot(pending);
+    generalPreferencesStatus("Cambios locales pendientes de sincronizar", "#ad6800");
+  }else if(cloud?.generalPreferences){
+    applyGeneralPreferencesSnapshot(cloud.generalPreferences);
+    generalPreferencesStatus("Nombres y diseño guardados en Firebase", "#087a3c");
+  }else{
+    generalPreferencesStatus("Nombres y diseño recuperados de la configuración actual");
+  }
+}
+function markGeneralPreferencesChanged(urgent=false){
+  saveDB();
+  localStorage.setItem(GENERAL_PREFERENCES_PENDING_KEY,JSON.stringify(generalPreferencesSnapshot()));
+  generalPreferencesStatus("Guardando nombres y diseño...", "#ad6800");
+  scheduleGeneralPreferencesSave(urgent);
+}
+function scheduleGeneralPreferencesSave(urgent=false){
+  clearTimeout(generalPreferencesTimer);
+  generalPreferencesTimer=setTimeout(flushGeneralPreferences,urgent?20:650);
+}
+async function flushGeneralPreferences(){
+  if(generalPreferencesSaving || firebaseBootstrapInProgress || window.__firebaseApplyingRemote)return;
+  const saved=localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY);
+  const pending=generalPreferencesPending();
+  if(!saved || !pending)return;
+  if(!window.FirebaseBridge?.ready){
+    generalPreferencesStatus("Guardado local · Firebase no disponible", "#ad6800");
+    return;
+  }
+  generalPreferencesSaving=true;
+  try{
+    await window.FirebaseBridge.uploadGeneralPreferences(pending);
+    if(localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY)===saved){
+      localStorage.removeItem(GENERAL_PREFERENCES_PENDING_KEY);
+      generalPreferencesStatus("Nombres y diseño guardados en Firebase", "#087a3c");
+    }
+  }catch(err){
+    console.error("Guardar preferencias de Etiqueta General",err);
+    generalPreferencesStatus("Guardado local · pendiente de Firebase", "#ad6800");
+  }finally{
+    generalPreferencesSaving=false;
+    if(localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY)!==saved && generalPreferencesPending()){
+      scheduleGeneralPreferencesSave(true);
+    }
+  }
+}
 function persistGeneralNamesFromField(forceCloud=false){
   const el=document.getElementById("generalBoxNames");
   if(!el)return;
   db.settings.generalBoxNames=el.value.split(",").map(x=>x.trim()).filter(Boolean);
-  saveDB();
-  clearTimeout(generalNamesCloudTimer);
-  generalNamesCloudTimer=setTimeout(async()=>{
-    if(!window.FirebaseBridge?.ready)return;
-    try{
-      await firebaseSyncDirtyState(true);
-      if(forceCloud)toast("Nombres de Etiqueta General guardados");
-    }catch(err){console.error("Guardar nombres General",err);}
-  },forceCloud?40:700);
+  markGeneralPreferencesChanged(forceCloud);
 }
 syncGeneralSavedNamesField();
 ["generalCode","generalDesc","generalUnits","generalExpiry","generalManufacture","generalQty","generalBoxNames"].forEach(id=>{
@@ -9254,6 +9358,7 @@ async function firebaseDownloadAll(){
     db.vials=cloud.vials||{};
     db.generalProducts=cloud.generalProducts||{};
     firebaseApplySharedState(cloud.sharedState);
+    restoreGeneralPreferences(cloud);
     await idbReplaceGeneralProducts(Object.values(db.generalProducts));
     repairAllProducts();
     saveDB();
@@ -9316,6 +9421,7 @@ async function firebaseStartupHydrate(force=false){
         db.vials=cloud.vials||{};
         db.generalProducts=cloud.generalProducts||{};
         firebaseApplySharedState(cloud.sharedState);
+        restoreGeneralPreferences(cloud);
 
         await idbReplaceGeneralProducts(Object.values(db.generalProducts));
         repairAllProducts();
@@ -9347,6 +9453,12 @@ async function firebaseStartupHydrate(force=false){
     }
 
     // Firebase respondió correctamente pero todavía está vacío.
+    // Las preferencias General pueden existir incluso sin base de productos.
+    if(cloud?.generalPreferences || generalPreferencesPending()){
+      window.__firebaseApplyingRemote=true;
+      try{restoreGeneralPreferences(cloud);saveDB();}
+      finally{window.__firebaseApplyingRemote=false;}
+    }
     // Antes de hacer una migración, leemos también Descripción productos desde IndexedDB.
     let localGeneralRows=[];
     try{
@@ -9419,6 +9531,7 @@ async function firebaseStartupHydrate(force=false){
     firebaseStartupHydrating=false;
     if(firebaseStartupHydrated && !firebaseBootstrapInProgress && window.FirebaseBridge?.ready){
       setTimeout(()=>flushPendingManualSync(),80);
+      if(generalPreferencesPending())scheduleGeneralPreferencesSave(true);
     }
   }
 }
@@ -9499,6 +9612,10 @@ document.getElementById("dbStatus")?.addEventListener("click",()=>{
   firebaseReadyUiStarted=true;
   firebaseStartupHydrated=false;
   firebaseStartupHydrate(true);
+});
+
+window.addEventListener("online",()=>{
+  if(generalPreferencesPending())scheduleGeneralPreferencesSave(true);
 });
 
 /* ---------- Backup ---------- */
