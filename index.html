@@ -2388,7 +2388,7 @@
       generalTitles:preferences.generalTitles,
       updatedAt:new Date().toISOString()
     };
-    await batchWrites([writeDoc(SYSTEM_COLLECTION,"general_preferences",payload)]);
+    await commitWrites([writeDoc(SYSTEM_COLLECTION,"general_preferences",payload)]);
     const confirmed=await getDocument(SYSTEM_COLLECTION,"general_preferences");
     if(!confirmed)throw new Error("Firebase no confirmó la etiqueta General");
     const remote=decodeFields(confirmed.fields||{});
@@ -2497,10 +2497,12 @@
     for(const x of manualOverlays.vials)vials[x.code]=x.record;
     for(const x of manualOverlays.generalProducts)generalProducts[x.code]=x.record;
 
+    let generalPreferencesError="";
     const [cfgDoc,generalPrefsDoc]=await Promise.all([
       getDocument(SYSTEM_COLLECTION,"app_config"),
       getDocument(SYSTEM_COLLECTION,"general_preferences").catch(err=>{
-        console.warn("Preferencias General no disponibles; se conserva la configuración actual",err);
+        generalPreferencesError=String(err?.message||err);
+        console.warn("No se pudo leer la copia remota de Etiqueta General",err);
         return null;
       })
     ]);
@@ -2512,7 +2514,7 @@
       delete sharedState.schemaVersion;
     }
 
-    return {products,vials,generalProducts,sharedState,generalPreferences};
+    return {products,vials,generalProducts,sharedState,generalPreferences,generalPreferencesError};
   }
 
   async function testConnection(){
@@ -2690,6 +2692,8 @@ let firebaseStartupWatchdog=0;
 let firebaseLastError="";
 window.__firebaseApplyingRemote=false;
 
+// Solo se usa para rescatar preferencias existentes en ESTE navegador antes de descargar app_config.
+const generalHadLocalDBAtStartup=!!localStorage.getItem("bulkLabelStudioDB");
 let db = loadDB();
 // v13: separar "clasificación que venía del Excel" de "clasificación manual".
 if(db.settings?.classificationDataModel!=="nr-aware-v2"){
@@ -7456,9 +7460,11 @@ function syncGeneralSavedNamesField(){
   const el=document.getElementById("generalBoxNames");
   if(el)el.value=(db.settings.generalBoxNames||[]).join(", ");
 }
-/* Preferencias exclusivas de Etiqueta General: nombres + diseño + textos del diseño.
-   Se conserva una copia pendiente local hasta que Firestore confirme la escritura. */
+/* Solo Etiqueta General: nombres y geometría del editor.
+   Guardamos 2 copias independientes: persistencia local permanente + cola local pendiente de Firebase.
+   Nunca reemplazar ediciones locales pendientes con un app_config remoto anterior. */
 const GENERAL_PREFERENCES_PENDING_KEY="labelingGeneralPreferencesPendingV1";
+const GENERAL_PREFERENCES_LOCAL_KEY="labelingGeneralPreferencesLocalV2";
 let generalPreferencesTimer=0;
 let generalPreferencesSaving=false;
 function generalPreferencesSnapshot(){
@@ -7468,18 +7474,28 @@ function generalPreferencesSnapshot(){
     generalTitles:structuredClone(db.settings.generalTitles||{})
   };
 }
-function generalPreferencesPending(){
+function validGeneralPreferences(p){
+  return !!p && Array.isArray(p.generalBoxNames) &&
+    !!p.generalTemplate && typeof p.generalTemplate.items==="object" &&
+    !!p.generalTemplate.items && !!p.generalTemplate.styles &&
+    typeof p.generalTemplate.styles==="object";
+}
+function readGeneralPreferences(key){
   try{
-    const value=JSON.parse(localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY)||"null");
-    return value && Array.isArray(value.generalBoxNames) && value.generalTemplate?.items ? value : null;
+    const value=JSON.parse(localStorage.getItem(key)||"null");
+    return validGeneralPreferences(value)?value:null;
   }catch(_){return null;}
 }
+function generalPreferencesPending(){return readGeneralPreferences(GENERAL_PREFERENCES_PENDING_KEY);}
+function generalPreferencesLocal(){return readGeneralPreferences(GENERAL_PREFERENCES_LOCAL_KEY);}
+// Capturamos la configuración previa ANTES de que Firebase hidrate app_config.
+const initialGeneralPreferences=generalHadLocalDBAtStartup?generalPreferencesSnapshot():null;
 function generalPreferencesStatus(text,color="#64748b"){
   const el=document.getElementById("generalPreferencesStatus");
   if(el){el.textContent=text;el.style.color=color;}
 }
 function applyGeneralPreferencesSnapshot(preferences){
-  if(!preferences || !Array.isArray(preferences.generalBoxNames) || !preferences.generalTemplate?.items)return;
+  if(!validGeneralPreferences(preferences))return;
   db.settings.generalBoxNames=structuredClone(preferences.generalBoxNames);
   db.settings.generalTemplate=structuredClone(preferences.generalTemplate);
   if(preferences.generalTitles)db.settings.generalTitles=structuredClone(preferences.generalTitles);
@@ -7487,24 +7503,66 @@ function applyGeneralPreferencesSnapshot(preferences){
   renderGeneral();
   renderGeneralBulkPreview?.();
 }
+function keepGeneralPreferencesLocally(preferences){
+  localStorage.setItem(GENERAL_PREFERENCES_LOCAL_KEY,JSON.stringify(preferences));
+}
+function enqueueGeneralPreferences(preferences){
+  localStorage.setItem(GENERAL_PREFERENCES_PENDING_KEY,JSON.stringify(preferences));
+  scheduleGeneralPreferencesSave();
+}
 function restoreGeneralPreferences(cloud){
-  // Una edición local aún pendiente nunca debe ser reemplazada por una descarga anterior.
   const pending=generalPreferencesPending();
+  const remote=validGeneralPreferences(cloud?.generalPreferences)?cloud.generalPreferences:null;
+  const savedLocal=generalPreferencesLocal();
+  // Prioridad: cambios pendientes de esta PC > copia confirmada en la nube > copia local.
   if(pending){
     applyGeneralPreferencesSnapshot(pending);
-    generalPreferencesStatus("Cambios locales pendientes de sincronizar", "#ad6800");
-  }else if(cloud?.generalPreferences){
-    applyGeneralPreferencesSnapshot(cloud.generalPreferences);
-    generalPreferencesStatus("Nombres y diseño guardados en Firebase", "#087a3c");
-  }else{
-    generalPreferencesStatus("Nombres y diseño recuperados de la configuración actual");
+    generalPreferencesStatus("Guardado en esta computadora · sincronización pendiente", "#ad6800");
+    return;
   }
+  if(remote){
+    applyGeneralPreferencesSnapshot(remote);
+    try{keepGeneralPreferencesLocally(remote)}catch(e){console.warn("Respaldo General local",e);}
+    generalPreferencesStatus("Nombres y diseño guardados en Firebase", "#087a3c");
+    return;
+  }
+  const fallback=savedLocal || initialGeneralPreferences;
+  if(validGeneralPreferences(fallback)){
+    applyGeneralPreferencesSnapshot(fallback);
+    try{
+      keepGeneralPreferencesLocally(fallback);
+      // Si aún no existe el documento exclusivo, se crea sin tocar otras configuraciones.
+      // Si hubo error de lectura, nunca se sobrescribe un documento que no pudimos comprobar.
+      if(!cloud?.generalPreferencesError)enqueueGeneralPreferences(fallback);
+    }catch(err){console.error("Respaldo local de General",err);}
+    generalPreferencesStatus(cloud?.generalPreferencesError
+      ? "Diseño conservado localmente · no se pudo comprobar Firebase"
+      : "Diseño conservado localmente · pendiente de Firebase", "#ad6800");
+    return;
+  }
+  // Primer acceso de otro equipo: usar la configuración compartida como semilla.
+  const current=generalPreferencesSnapshot();
+  try{
+    keepGeneralPreferencesLocally(current);
+    if(!cloud?.generalPreferencesError)enqueueGeneralPreferences(current);
+  }catch(err){console.error("Guardar configuración General inicial",err);}
+  generalPreferencesStatus(cloud?.generalPreferencesError
+    ? "Configuración visible · sin confirmar en Firebase"
+    : "Configuración General lista · pendiente de Firebase", "#ad6800");
 }
 function markGeneralPreferencesChanged(urgent=false){
-  saveDB();
-  localStorage.setItem(GENERAL_PREFERENCES_PENDING_KEY,JSON.stringify(generalPreferencesSnapshot()));
-  generalPreferencesStatus("Guardando nombres y diseño...", "#ad6800");
-  scheduleGeneralPreferencesSave(urgent);
+  const snapshot=generalPreferencesSnapshot();
+  try{
+    // Guardar primero la copia independiente, antes de cualquier sincronización de la base.
+    keepGeneralPreferencesLocally(snapshot);
+    localStorage.setItem(GENERAL_PREFERENCES_PENDING_KEY,JSON.stringify(snapshot));
+    saveDB();
+    generalPreferencesStatus("Guardado en esta computadora · sincronizando Firebase...", "#ad6800");
+    scheduleGeneralPreferencesSave(urgent);
+  }catch(err){
+    console.error("No se pudo conservar la Etiqueta General",err);
+    generalPreferencesStatus("ERROR: almacenamiento local lleno o deshabilitado", "#b42318");
+  }
 }
 function scheduleGeneralPreferencesSave(urgent=false){
   clearTimeout(generalPreferencesTimer);
@@ -7516,7 +7574,7 @@ async function flushGeneralPreferences(){
   const pending=generalPreferencesPending();
   if(!saved || !pending)return;
   if(!window.FirebaseBridge?.ready){
-    generalPreferencesStatus("Guardado local · Firebase no disponible", "#ad6800");
+    generalPreferencesStatus("Guardado en esta computadora · Firebase no disponible", "#ad6800");
     return;
   }
   generalPreferencesSaving=true;
@@ -7527,8 +7585,8 @@ async function flushGeneralPreferences(){
       generalPreferencesStatus("Nombres y diseño guardados en Firebase", "#087a3c");
     }
   }catch(err){
-    console.error("Guardar preferencias de Etiqueta General",err);
-    generalPreferencesStatus("Guardado local · pendiente de Firebase", "#ad6800");
+    console.error("Error al guardar Etiqueta General en Firebase",err);
+    generalPreferencesStatus("Guardado local · error Firebase: "+String(err?.message||err).slice(0,125), "#b42318");
   }finally{
     generalPreferencesSaving=false;
     if(localStorage.getItem(GENERAL_PREFERENCES_PENDING_KEY)!==saved && generalPreferencesPending()){
@@ -7541,6 +7599,13 @@ function persistGeneralNamesFromField(forceCloud=false){
   if(!el)return;
   db.settings.generalBoxNames=el.value.split(",").map(x=>x.trim()).filter(Boolean);
   markGeneralPreferencesChanged(forceCloud);
+}
+// Recuperación inmediata, antes de esperar Firebase y antes de inicializar la tabla masiva.
+const savedGeneralOnOpening=generalPreferencesPending()||generalPreferencesLocal();
+if(savedGeneralOnOpening){
+  db.settings.generalBoxNames=structuredClone(savedGeneralOnOpening.generalBoxNames);
+  db.settings.generalTemplate=structuredClone(savedGeneralOnOpening.generalTemplate);
+  if(savedGeneralOnOpening.generalTitles)db.settings.generalTitles=structuredClone(savedGeneralOnOpening.generalTitles);
 }
 syncGeneralSavedNamesField();
 ["generalCode","generalDesc","generalUnits","generalExpiry","generalManufacture","generalQty","generalBoxNames"].forEach(id=>{
@@ -9454,7 +9519,7 @@ async function firebaseStartupHydrate(force=false){
 
     // Firebase respondió correctamente pero todavía está vacío.
     // Las preferencias General pueden existir incluso sin base de productos.
-    if(cloud?.generalPreferences || generalPreferencesPending()){
+    {
       window.__firebaseApplyingRemote=true;
       try{restoreGeneralPreferences(cloud);saveDB();}
       finally{window.__firebaseApplyingRemote=false;}
